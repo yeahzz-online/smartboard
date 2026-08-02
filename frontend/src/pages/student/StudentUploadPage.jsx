@@ -222,17 +222,10 @@ export default function StudentUploadPage() {
       </form>
 
       {result ? (
-        <div className="mt-4 rounded-xl border border-emerald-200/30 bg-emerald-200/10 p-4 text-xs">
-          <p className="text-emerald-100">Upload completed successfully.</p>
-          <p className="mt-2 text-emerald-50">File: {result.fileName}</p>
-          <a
-            className="mt-2 inline-block text-brand-200 hover:text-brand-100"
-            href={result.fileUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open Uploaded File
-          </a>
+        <div className="mt-4 rounded-xl border text-black-500/100 border-black-200/30 bg-green-500 p-4 text-xs">
+          <h2 className=" text-center text-green-100">Upload completed successfully.</h2>
+          <p className="text-center mt-2 text-green-50">File: {result.fileName}</p>
+          
         </div>
       ) : null}
     </GlassCard>

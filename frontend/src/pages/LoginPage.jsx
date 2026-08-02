@@ -163,7 +163,7 @@ export default function LoginPage({ portalRole = null }) {
               {showPassword ? "Hide" : "Show"}
             </button>
           </div>
-          <div className="mt-2 text-right">
+          <div className="mt-2 text-right text-violet-100 hover:text-violet-700">
             <Link className={`text-xs ${linkClass}`} to="/forgot-password">
               Forgot password?
             </Link>

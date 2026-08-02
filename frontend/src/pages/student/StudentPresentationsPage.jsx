@@ -52,7 +52,8 @@ export default function StudentPresentationsPage() {
   const isEditing = Boolean(editState.id);
 
   const statusOptions = useMemo(() => ["UPLOADED", "PENDING", "APPROVED", "REJECTED"], []);
-
+  const visiblePresentations = presentations;
+ 
   const loadData = async () => {
     setLoading(true);
     setError("");
@@ -327,47 +328,36 @@ export default function StudentPresentationsPage() {
 
       <GlassCard>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="text-soft">
-              <tr>
-                <th className="px-3 py-2">Title</th>
-                <th className="px-3 py-2">Subject</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Uploaded</th>
-                <th className="px-3 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {presentations.map((item) => (
-                <tr key={item.id} className="border-t border-white/10">
-                  <td className="px-3 py-3">
-                    <p className="font-semibold text-white">{item.title || item.fileName || "-"}</p>
-                    <p className="text-xs text-soft">{item.description || "-"}</p>
-                  </td>
-                  <td className="px-3 py-3">
-                    {item.subjectCode} {item.subjectName ? `- ${item.subjectName}` : ""}
-                  </td>
-                  <td className="px-3 py-3">{item.status}</td>
-                  <td className="px-3 py-3">
-                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : "-"}
-                  </td>
-                  <td className="px-3 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setActiveMenuItem(item)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm text-white transition hover:bg-white/15"
-                      aria-haspopup="true"
-                      aria-expanded={activeMenuItem?.id === item.id}
-                    >
-                      ⋯
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="grid min-w-[900px] grid-cols-4 gap-4 auto-rows-fr">
+          {visiblePresentations.map((item) => (
+            <div key={item.id} className="relative rounded-2xl border border-white/10 bg-white/95 p-4">
+              <div className="flex justify-between items-start gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-white truncate">{item.title || item.fileName || "-"}</p>
+                  <p className="text-xs text-soft mt-1 line-clamp-2">{item.description || "-"}</p>
+                  <p className="text-xs text-soft mt-2">{item.subjectCode} {item.subjectName ? `- ${item.subjectName}` : ""}</p>
+                  <p className="text-xs text-soft mt-1">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "-"}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white">{item.status}</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenuItem(item)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/20 bg-black text-sm text-white transition hover:bg-black"
+                    aria-haspopup="true"
+                    aria-expanded={activeMenuItem?.id === item.id}
+                  >
+                    ⋯
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+          </div>
         </div>
-        {presentations.length === 0 ? <p className="mt-4 text-soft">No presentations found.</p> : null}
+        {presentations.length === 0 ? (
+          <p className="mt-4 text-soft">No presentations found.</p>
+        ) : null}
       </GlassCard>
 
       {activeMenuItem ? (
@@ -387,7 +377,7 @@ export default function StudentPresentationsPage() {
               <button
                 type="button"
                 onClick={closeActionMenu}
-                className="rounded-full border text-black bg-white px-2 py-1 text-xs text-black/100 hover:bg-black/10"
+                className="rounded-full border text-black bg-black px-2 py-1 text-xs text-white/100 hover:bg-black/10"
               >
                 Close
               </button>
@@ -405,7 +395,7 @@ export default function StudentPresentationsPage() {
               </button>
               <button
                 type="button"
-                className="w-full rounded-2xl border border-black/10 bg-violet-500/100 px-4 py-3 text-center text-sm text-black hover:bg-black/10"
+                className="w-full rounded-2xl border border-black/10 bg-violet-500/100 px-4 py-3 text-center text-sm text-black hover:bg-violet-500/50"
                 onClick={async () => {
                   try {
                     await openRemoteFile(activeMenuItem.id);
@@ -420,7 +410,7 @@ export default function StudentPresentationsPage() {
               </button>
               <button
                 type="button"
-                className="w-full rounded-2xl border border-black/10 bg-green-500/100 px-4 py-3 text-center text-sm text-black hover:bg-black/10"
+                className="w-full rounded-2xl border border-black/10 bg-green-500/100 px-4 py-3 text-center text-sm text-black hover:bg-green-500/50"
                 onClick={async () => {
                   try {
                     await viewRemoteFile(activeMenuItem.id);
@@ -433,7 +423,7 @@ export default function StudentPresentationsPage() {
               >
                 View
               </button>
-              <label className="block cursor-pointer rounded-2xl bg-green px-4 py-3 text-center text-sm text-black hover:bg-white/15">
+              <label className="block cursor-pointer rounded-2xl bg-white/500/20 px-4 py-3 text-center text-sm text-black hover:bg-black/15">
                 Replace
                 <input
                   type="file"

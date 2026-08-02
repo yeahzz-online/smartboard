@@ -204,7 +204,7 @@ export default function ForgotPasswordPage() {
             Didn't get OTP?{" "}
             <button
               type="button"
-              className="text-brand-300 hover:text-brand-100"
+              className="text-violet-500 hover:text-violet-700"
               onClick={requestOtp}
               disabled={submitting}
             >
@@ -214,8 +214,8 @@ export default function ForgotPasswordPage() {
         </form>
       )}
 
-      <p className="mt-4 text-sm text-soft">
-        <Link className="text-brand-300 hover:text-brand-100" to="/login">
+      <p className="mt-4  text-sm text-soft">
+        <Link className="text-violet-500 hover:text-violet-700" to="/login">
           Back to login
         </Link>
       </p>

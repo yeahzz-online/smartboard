@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import { getAccessToken, getRefreshToken, setAuthSession, clearAuthSession } from "./tokenStorage";
 
 function isLocalHostName(hostname) {
@@ -49,9 +49,11 @@ const api = axios.create({
   timeout: 15000
 });
 
+// Attach access token for requests
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -59,10 +61,11 @@ api.interceptors.request.use((config) => {
 
 let refreshPromise = null;
 
+// Response interceptor that retries once after refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
     const isUnauthorized = error?.response?.status === 401;
     if (!isUnauthorized || originalRequest._retry) {
       return Promise.reject(error);
@@ -94,6 +97,7 @@ api.interceptors.response.use(
     }
 
     const newAccessToken = await refreshPromise;
+    originalRequest.headers = originalRequest.headers || {};
     originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
     return api(originalRequest);
   }

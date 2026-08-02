@@ -63,6 +63,8 @@ export default function SmartboardViewPage() {
   const [selectedPresentationId, setSelectedPresentationId] = useState("");
   const [previewFileUrl, setPreviewFileUrl] = useState("");
   const [previewFileType, setPreviewFileType] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 24; // 4 columns x 6 rows = 24 cards per page
 
   const loadLibrary = async () => {
     setLoading(true);
@@ -207,6 +209,17 @@ export default function SmartboardViewPage() {
     return grouped;
   }, [facultyList, selectedClass, selectedClassId, subjectsByFaculty]);
 
+  // Currently selected faculty object (falls back to inferred faculty)
+  const currentFaculty = useMemo(() => {
+    return (facultyList.find((f) => String(f.id) === String(selectedFacultyId)) || faculty) || null;
+  }, [facultyList, faculty, selectedFacultyId]);
+
+  // Subjects visible for the currently selected faculty (already respects class filter)
+  const currentFacultySubjects = useMemo(() => {
+    if (!currentFaculty) return [];
+    return visibleSubjectsByFaculty.get(String(currentFaculty.id)) || [];
+  }, [visibleSubjectsByFaculty, currentFaculty]);
+
   const selectedClassPresentations = useMemo(
     () => {
       const source = String(selectedClassId) === ALL_CLASSES_KEY
@@ -220,6 +233,15 @@ export default function SmartboardViewPage() {
     },
     [allClassPresentations, filteredPresentationsByClass, selectedClassId, selectedFacultyId]
   );
+
+  // Pagination: show 4 columns x 6 rows per page
+  const pagedPresentations = useMemo(() => {
+    if (!selectedClassPresentations || !selectedClassPresentations.length) return [];
+    const start = (currentPage - 1) * itemsPerPage;
+    return selectedClassPresentations.slice(start, start + itemsPerPage);
+  }, [selectedClassPresentations, currentPage]);
+
+  const totalPages = Math.max(1, Math.ceil((selectedClassPresentations.length || 0) / itemsPerPage));
 
   const selectedClassSubtitle = useMemo(() => {
     if (String(selectedClassId) === ALL_CLASSES_KEY) return "All classes view";
@@ -315,7 +337,7 @@ export default function SmartboardViewPage() {
         <div className="grid grid-cols-[260px_1fr] gap-6">
 
           {/* Left sidebar: Departments / Faculty */}
-          <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm h-full overflow-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-800">Departments</h3>
               <button className="text-xs text-slate-500">Filter</button>
@@ -324,7 +346,7 @@ export default function SmartboardViewPage() {
             <div className="mt-3">
               <input
                 placeholder="Filter faculty..."
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400"
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-400 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
               />
             </div>
 
@@ -337,27 +359,29 @@ export default function SmartboardViewPage() {
                     key={f.id}
                     type="button"
                     onClick={() => chooseFaculty(f.id)}
-                    className={`w-full flex items-center gap-3 rounded-md p-2 transition ${
-                      active ? 'bg-violet-100 border border-violet-300' : 'hover:bg-slate-50'
+                    className={`w-full flex items-center gap-4 rounded-lg p-3 transition ${
+                      active ? 'bg-violet-50 ring-1 ring-violet-200' : 'hover:bg-slate-50'
                     }`}
                   >
                     <img
-                      src={f.avatarUrl || '/auth-assets/image.png'}
+                      src={f.avatarUrl || '/auth-assets/people-svgrepo-com.svg'}
                       alt={f.name}
-                      className="h-10 w-10 rounded-full object-cover"
+                      className="h-8 w-8 rounded-full object-cover"
                     />
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-slate-800">{f.name || 'Faculty'}</p>
-                      <p className="text-xs text-slate-500">{f.department || f.departmentCode || ''}</p>
+                    <div className="text-left flex-1">
+                      <p className="text-base font-medium text-slate-800">{f.name || 'Faculty'}</p>
                       {(() => {
                         const subjects = visibleSubjectsByFaculty.get(String(f.id)) || [];
-                        if (!subjects.length) return null;
-                        return (
-                          <p className="mt-1 text-[11px] text-violet-600">
-                            {subjects.slice(0, 2).map((subject) => subject.name || 'Subject').join(' • ')}
-                            {subjects.length > 2 ? '' : ''}
-                          </p>
-                        );
+                        if (subjects.length) {
+                          const names = subjects.map((s) => s.name || s.title || 'Subject');
+                          return (
+                            <>
+                              <p className="text-xs text-slate-400 mt-1 truncate">{names.join(' • ')}</p>
+                              <p className="text-xs text-slate-400">{f.department || f.departmentCode || ''}</p>
+                            </>
+                          );
+                        }
+                        return <p className="text-xs text-slate-400">{f.department || f.departmentCode || ''}</p>;
                       })()}
                     </div>
                   </button>
@@ -367,9 +391,7 @@ export default function SmartboardViewPage() {
 
             
 
-            <div className="mt-6 pt-4 border-t border-slate-100 space-y-2 text-sm">
-              <button className="w-full text-left text-slate-600">Help Center</button>
-            </div>
+          
           </aside>
 
           {/* Main content */}
@@ -377,42 +399,57 @@ export default function SmartboardViewPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500">
-                  {(facultyList.find(f=>String(f.id)===String(selectedFacultyId)) || faculty)?.department || ''}
-                  {((facultyList.find(f=>String(f.id)===String(selectedFacultyId)) || faculty)?.name) ? ' > ' : ''}
-                  {(facultyList.find(f=>String(f.id)===String(selectedFacultyId)) || faculty)?.name || ''}
+                  {currentFaculty?.department || ''}
+                  {currentFaculty?.name ? ' > ' : ''}
+                  {currentFaculty?.name || ''}
                 </p>
+                {currentFacultySubjects && currentFacultySubjects.length ? (
+                  <p className="text-sm text-slate-500 mt-1">
+                {currentFacultySubjects.map((s) => s.name || s.title || 'Subject').join(' • ')}
+                  </p>
+                ) : null}
                 <h1 className="mt-2 text-2xl font-bold text-slate-900">Students Presentations</h1>
               </div>
 
              
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {selectedClassPresentations.map((ppt) => (
-                <div key={ppt.id} className="rounded-lg border border-slate-200 bg-white shadow-sm">
-                  <div className="relative">
-                    <img src={ppt.thumbnailUrl || '/auth-assets/images.png'} alt={ppt.title || ppt.fileName} className="h-40 w-full rounded-t-lg object-cover" />
-                    {ppt.isNew ? (
-                      <span className="absolute top-2 right-2 rounded-full bg-blue-600 px-2 py-1 text-xs text-white">NEW</span>
-                    ) : null}
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm font-semibold text-slate-900 line-clamp-2">{ppt.title || ppt.fileName || 'Untitled'}</p>
-                    <p className="mt-2 text-xs text-slate-500 h-12 overflow-hidden text-ellipsis">{ppt.description || ppt.summary || ''}</p>
+            <div className="mt-6">
+              <div className="grid grid-cols-4 gap-6">
+                {pagedPresentations.map((ppt) => (
+                  <div key={ppt.id} className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                    <div className="relative">
+                      <img src={ppt.thumbnailUrl || '/auth-assets/images.png'} alt={ppt.title || ppt.fileName} className="h-36 w-full rounded-t-lg object-cover" />
+                      {ppt.isNew ? (
+                        <span className="absolute top-2 right-2 rounded-full bg-blue-600 px-2 py-1 text-xs text-white">NEW</span>
+                      ) : null}
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-semibold text-slate-900 line-clamp-2">{ppt.title || ppt.fileName || 'Untitled'}</p>
+                      <p className="mt-2 text-xs text-slate-500 h-10 overflow-hidden text-ellipsis">{ppt.description || ppt.summary || ''}</p>
 
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8z"/></svg>
-                        <span>{(ppt.slidesCount || ppt.slideCount || '—') + ' Slides'}</span>
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8z"/></svg>
+                          <span>{(ppt.slidesCount || ppt.slideCount || '—') + ' Slides'}</span>
+                        </div>
+                        <button onClick={() => openPresentation(ppt)} className="text-sm font-semibold text-violet-600">View Deck →</button>
                       </div>
-                      <button onClick={() => openPresentation(ppt)} className="text-sm font-semibold text-violet-600">View Deck →</button>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
 
               {selectedClassPresentations.length === 0 && !loading ? (
                 <p className="text-sm text-slate-500">No presentations available for this selection.</p>
+              ) : null}
+
+              {selectedClassPresentations.length > itemsPerPage ? (
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <button onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); }} className="px-3 py-1 rounded bg-slate-100">Prev</button>
+                  <span className="text-sm text-slate-600">Page {currentPage} of {totalPages}</span>
+                  <button onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); }} className="px-3 py-1 rounded bg-slate-100">Next</button>
+                </div>
               ) : null}
             </div>
 
