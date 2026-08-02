@@ -315,4 +315,5 @@ Use:
 ## Deployment Notes
 Set the backend environment variables in `backend/.env` and run the backend with Supabase storage enabled.
 #   c l a s s  
+ #   b a c k i  
  
