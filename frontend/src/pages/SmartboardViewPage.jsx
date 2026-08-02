@@ -342,7 +342,7 @@ export default function SmartboardViewPage() {
                     }`}
                   >
                     <img
-                      src={f.avatarUrl || '/auth-assets/people-svgrepo-com.svg'}
+                      src={f.avatarUrl || '/auth-assets/image.png'}
                       alt={f.name}
                       className="h-10 w-10 rounded-full object-cover"
                     />
