@@ -77,9 +77,10 @@ export default function StudentSubjectsPage() {
   };
 
   const getStatusClass = (status) => {
-    if (status === "UPLOADED" || status === "APPROVED") return "bg-emerald-400/20 text-emerald-200";
-    if (status === "REJECTED") return "bg-red-400/20 text-red-200";
-    return "bg-amber-400/20 text-amber-200";
+    const s = String(status || "").toUpperCase();
+    if (s === "UPLOADED" || s === "APPROVED") return "bg-emerald-100 text-emerald-900";
+    if (s === "PENDING" || s === "REJECTED") return "bg-red-100 text-red-900";
+    return "bg-black text-white";
   };
 
   return (
@@ -103,7 +104,7 @@ export default function StudentSubjectsPage() {
               </p>
             </div>
             <span
-              className={`rounded-full px-2 py-1 text-[10px] text-black/100 font-semibold uppercase ${getStatusClass(item.uploadStatus)}`}
+              className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${getStatusClass(item.uploadStatus)}`}
             >
               {item.uploadStatus}
             </span>

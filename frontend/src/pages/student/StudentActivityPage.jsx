@@ -4,11 +4,15 @@ import PageLoader from "../../components/PageLoader";
 import api from "../../services/api";
 
 function getBadgeClass(type, status) {
-  if (status === "REJECTED") return "bg-red-400/20 text-red-100";
-  if (status === "APPROVED") return "bg-emerald-400/20 text-emerald-100";
-  if (status === "UPLOADED" || status === "PENDING") return "bg-amber-400/20 text-amber-100";
+  const s = String(status || "").toUpperCase();
+  // Approved / Uploaded -> green
+  if (s === "APPROVED" || s === "UPLOADED") return "bg-emerald-100 text-emerald-900";
+  // Pending / Rejected -> red
+  if (s === "PENDING" || s === "REJECTED") return "bg-red-100 text-red-900";
+  // Login event uses brand tone
   if (type === "LOGIN") return "bg-brand-400/20 text-brand-100";
-  return "bg-white/10 text-white";
+  // Default neutral / subjects -> black
+  return "bg-black text-white";
 }
 
 function formatDateTime(value) {

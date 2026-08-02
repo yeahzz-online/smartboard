@@ -4,8 +4,8 @@ import PageLoader from "../../components/PageLoader";
 import api from "../../services/api";
 
 function getPriorityClass(priority, status) {
-  if (status === "REJECTED") return "border-red-300/40 bg-red-400/15";
-  if (status === "APPROVED") return "border-emerald-300/40 bg-emerald-400/15";
+  if (status === "REJECTED") return "border-red-300/40 bg-red-100/15";
+  if (status === "APPROVED") return "border-emerald-300/40 bg-emerald-100/15";
   if (priority === "HIGH") return "border-amber-300/40 bg-amber-300/15";
   return "border-white/10 bg-white/5";
 }

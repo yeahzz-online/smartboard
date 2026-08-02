@@ -10,10 +10,13 @@ function formatDateTime(value) {
 }
 
 function getStatusClass(status) {
-  if (status === "APPROVED") return "bg-emerald-100 text-emerald-900";
-  if (status === "REJECTED") return "bg-red-100 text-red-900";
-  if (status === "UPLOADED") return "bg-violet-100 text-violet-900";
-  return "bg-amber-100 text-amber-900";
+  const s = String(status || "").toUpperCase();
+  // Uploaded / Approved -> green
+  if (s === "UPLOADED" || s === "APPROVED") return "bg-emerald-100 text-emerald-900";
+  // Pending / Rejected -> red
+  if (s === "PENDING" || s === "REJECTED") return "bg-red-100 text-red-900";
+  // Default (subjects or unknown) -> black
+  return "bg-black text-white";
 }
 
 function MetricTile({ label, value }) {
@@ -64,7 +67,9 @@ export default function StudentHomePage() {
   const notifications = state.dashboard?.notifications || [];
   const activityHistory = state.dashboard?.activityHistory || [];
 
-  const fullName = String(user?.name || profile.name || "Student").trim();
+  // Compute display/full name and first name safely (avoid duplicate declarations)
+  const rawName = (user?.name || profile?.name || "Student").toString().trim();
+  const fullName = rawName || "Student";
   const firstName = fullName.split(/\s+/)[0] || "Student";
 
   const quickActions = [
@@ -95,7 +100,7 @@ export default function StudentHomePage() {
       <div className="space-y-4 lg:hidden">
         <GlassCard className="rounded-3xl border-white/20 bg-gradient-to-br from-[#7F49B433] via-[#7F49B444] to-[#14141455] p-5">
           <p className="text-sm text-blue-100/85">Student Dashboard</p>
-          <h3 className="mt-1 font-display text-3xl text-white">Hello, {firstName}!</h3>
+          <h3 className="mt-1 font-display text-3xl text-white">Hello, {fullName}!</h3>
           <p className="mt-2 text-xs text-blue-100/80">
             Balance your uploads and stay aligned with class submissions.
           </p>
@@ -211,7 +216,7 @@ export default function StudentHomePage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
           <GlassCard className="h-full rounded-3xl border-white/20 bg-gradient-to-br from-[#7F49B433] via-[#7F49B444] to-[#14141455] p-5">
             <p className="text-sm text-blue-100/85">Student Dashboard</p>
-            <h3 className="mt-1 font-display text-3xl text-white">Welcome back, {firstName}</h3>
+            <h3 className="mt-1 font-display text-3xl text-white">Welcome back, {fullName}</h3>
             <p className="mt-2 text-sm text-blue-100/80">
               Keep your presentations updated and monitor review status from one place.
             </p>
@@ -225,11 +230,11 @@ export default function StudentHomePage() {
               </p>
               <p className="flex items-center justify-between text-white">
                 <span>Total Uploads</span>
-                <span className="font-semibold">{metrics.uploadedCount || 0}</span>
+                <span className="  text-green-500 font-semibold">{metrics.uploadedCount || 0}</span>
               </p>
               <p className="flex items-center justify-between text-white">
                 <span>Pending Submissions</span>
-                <span className="font-semibold">{metrics.pendingCount || 0}</span>
+                <span className="text-red-500 font-semibold">{metrics.pendingCount || 0}</span>
               </p>
             </div>
           </GlassCard>

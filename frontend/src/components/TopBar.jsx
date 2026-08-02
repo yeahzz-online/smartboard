@@ -109,7 +109,7 @@ export default function TopBar() {
           className="inline-flex items-center gap-2 rounded-xl border border-red-600 bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
         >
           <PortalIcon name="logout" className="h-4 w-4" />
-          <span className="hidden sm:inline">Logout</span>
+          
         </button>
       </div>
     </header>

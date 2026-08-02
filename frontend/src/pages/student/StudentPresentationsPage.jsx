@@ -52,6 +52,13 @@ export default function StudentPresentationsPage() {
   const isEditing = Boolean(editState.id);
 
   const statusOptions = useMemo(() => ["UPLOADED", "PENDING", "APPROVED", "REJECTED"], []);
+
+  const getStatusTone = (status) => {
+    const s = String(status || "").toUpperCase();
+    if (s === "UPLOADED" || s === "APPROVED") return "bg-emerald-100 text-emerald-900";
+    if (s === "PENDING" || s === "REJECTED") return "bg-red-100 text-red-900";
+    return "bg-black text-white";
+  };
   const visiblePresentations = presentations;
  
   const loadData = async () => {
@@ -339,7 +346,7 @@ export default function StudentPresentationsPage() {
                   <p className="text-xs text-soft mt-1">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "-"}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white">{item.status}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusTone(item.status)}`}>{item.status}</span>
                   <button
                     type="button"
                     onClick={() => setActiveMenuItem(item)}
