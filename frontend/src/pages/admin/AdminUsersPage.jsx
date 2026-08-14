@@ -95,6 +95,8 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedRole, setSelectedRole] = useState(() => getRoleFilterFromSearch(location.search));
+  const [searchTerm, setSearchTerm] = useState("");
+  const [togglingCrUserId, setTogglingCrUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -110,7 +112,8 @@ export default function AdminUsersPage() {
   const [academicInputKey, setAcademicInputKey] = useState(0);
   const [downloadLoading, setDownloadLoading] = useState("");
   const [confirmCreateOpen, setConfirmCreateOpen] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const loadUsers = async (roleFilter = selectedRole) => {
     setLoading(true);
@@ -185,7 +188,6 @@ export default function AdminUsersPage() {
   };
 
   const doCreate = async () => {
-    setShowCreateForm(true);
     setError("");
     setMessage("");
     setCreating(true);
@@ -197,6 +199,7 @@ export default function AdminUsersPage() {
       await api.post("/admin/users", payload);
       setMessage("User created successfully");
       setCreateForm(initialCreateForm);
+      setIsCreateModalOpen(false);
       loadUsers();
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError.message || "Failed to create user");
@@ -330,6 +333,7 @@ export default function AdminUsersPage() {
           : "",
       isVerified: Boolean(user.isVerified)
     });
+    setIsEditModalOpen(true);
   };
 
   const handleUpdate = async (event) => {
@@ -344,6 +348,7 @@ export default function AdminUsersPage() {
       await api.put(`/admin/users/${editForm.id}`, payload);
       setMessage("User updated successfully");
       setEditForm(initialEditForm);
+      setIsEditModalOpen(false);
       loadUsers();
     } catch (requestError) {
       setError(requestError?.response?.data?.message || "Failed to update user");
@@ -361,10 +366,34 @@ export default function AdminUsersPage() {
       setMessage("User deleted successfully");
       if (editForm.id === userId) {
         setEditForm(initialEditForm);
+        setIsEditModalOpen(false);
       }
       loadUsers();
     } catch (requestError) {
       setError(requestError?.response?.data?.message || "Failed to delete user");
+    }
+  };
+
+  const handleToggleCr = async (user) => {
+    const nextCr = !user.isCr;
+    setTogglingCrUserId(user.id);
+    setError("");
+    setMessage("");
+    try {
+      await api.put(`/admin/users/${user.id}/cr`, {
+        isCr: nextCr,
+        classId: user.classId || undefined
+      });
+      setMessage(
+        nextCr
+          ? `Assigned ${user.name} (${user.rollNumber || user.email}) as Class Representative (CR)`
+          : `Removed CR role from ${user.name}`
+      );
+      await loadUsers();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to update CR status");
+    } finally {
+      setTogglingCrUserId(null);
     }
   };
 
@@ -512,389 +541,551 @@ export default function AdminUsersPage() {
         ) : null}
       </GlassCard>
 
-      <GlassCard>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-soft">
-            Click "New User" to open the form. Stays hidden until needed.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowCreateForm((prev) => !prev)}
-            className="rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-2 text-sm font-semibold text-white"
-          >
-            {showCreateForm ? "Hide Form" : "New User"}
-          </button>
-        </div>
-
-        {showCreateForm ? (
-          <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={handleCreate}>
-            <input
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              placeholder="Name"
-              value={createForm.name}
-              onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
-              required
-            />
-            <input
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              placeholder="Email"
-              type="email"
-              value={createForm.email}
-              onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
-              required
-            />
-            <input
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              placeholder="Password"
-              type="password"
-              value={createForm.password}
-              onChange={(event) =>
-                setCreateForm((prev) => ({ ...prev, password: event.target.value }))
-              }
-              minLength={8}
-              required
-            />
-            <select
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              value={createForm.role}
-              onChange={(event) => {
-                const role = event.target.value;
-                const sections = getSectionsForBranch(createForm.branch);
-                setCreateForm((prev) => ({
-                  ...prev,
-                  role,
-                  section: sections.includes(prev.section) ? prev.section : sections[0] || ""
-                }));
-              }}
-            >
-              {ROLE_OPTIONS.filter((item) => item !== "ALL").map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-
-            {createForm.role === "STUDENT" ? (
-              <>
-                <input
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  placeholder="Roll Number"
-                  value={createForm.rollNumber}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({ ...prev, rollNumber: event.target.value }))
-                  }
-                  required
-                />
-                <input
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  placeholder="Mobile"
-                  value={createForm.mobile}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      mobile: event.target.value.replace(/\D/g, "").slice(0, 10)
-                    }))
-                  }
-                  required
-                />
-                <select
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  value={createForm.branch}
-                  onChange={(event) => {
-                    const branch = event.target.value;
-                    const sections = getSectionsForBranch(branch);
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      branch,
-                      section: sections.includes(prev.section) ? prev.section : sections[0] || ""
-                    }));
-                  }}
-                >
-                  {Object.keys(SECTION_OPTIONS_BY_BRANCH).map((branch) => (
-                    <option key={branch} value={branch}>
-                      {branch}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  value={createForm.year}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, year: event.target.value }))}
-                >
-                  {YEAR_OPTIONS.map((year) => (
-                    <option key={year} value={year}>
-                      Year {year}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-                  value={createForm.section}
-                  onChange={(event) =>
-                    setCreateForm((prev) => ({ ...prev, section: event.target.value }))
-                  }
-                >
-                  {getSectionsForBranch(createForm.branch).map((section) => (
-                    <option key={section} value={section}>
-                      {section}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : null}
-
-            {createForm.role === "FACULTY" ? (
-              <input
-                className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-                placeholder="Faculty class IDs (comma separated)"
-                value={createForm.facultyClassIds}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({ ...prev, facultyClassIds: event.target.value }))
-                }
-              />
-            ) : null}
-
-            <select
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-              value={createForm.classId}
-              onChange={(event) => setCreateForm((prev) => ({ ...prev, classId: event.target.value }))}
-            >
-              <option value="">Class Assignment (Optional)</option>
-              {classes.map((classItem) => (
-                <option key={classItem.id} value={classItem.id}>
-                  {classItem.name} ({classItem.departmentCode}) Y{classItem.year}-{classItem.section}
-                </option>
-              ))}
-            </select>
-
-            <label className="md:col-span-2 flex items-center gap-2 text-sm text-slate-200">
-              <input
-                type="checkbox"
-                checked={createForm.isVerified}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({ ...prev, isVerified: event.target.checked }))
-                }
-              />
-              Mark as verified
-            </label>
-
-            <button
-              className="rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70 md:col-span-2"
-              type="submit"
-              disabled={creating}
-            >
-              {creating ? "Creating..." : "Create User"}
-            </button>
-          </form>
-        ) : null}
-      </GlassCard>
-
+      {/* CONFIRMATION POPUP FOR CREATION */}
       {confirmCreateOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[#CFCFCF] bg-[#CFCFCF] p-5 shadow-2xl">
-            <p className="text-lg font-display text-slate-900">Create this user?</p>
-            <p className="mt-2 text-sm text-slate-600">
-              Name: <span className="text-slate-900">{createForm.name || "-"}</span>
-              <br />
-              Email: <span className="text-slate-900">{createForm.email || "-"}</span>
-              <br />
-              Role: <span className="text-slate-900">{createForm.role}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#18181b] p-6 shadow-2xl space-y-4 text-white">
+            <h4 className="text-lg font-display font-bold text-white">Confirm User Creation</h4>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Are you sure you want to create this user with the following details?
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={doCreate}
-                className="rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Confirm & Create
-              </button>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 text-xs space-y-1.5 text-slate-300">
+              <p><strong className="text-white">Name:</strong> {createForm.name || "-"}</p>
+              <p><strong className="text-white">Email:</strong> {createForm.email || "-"}</p>
+              <p><strong className="text-white">Role:</strong> {createForm.role}</p>
+              {createForm.role === "STUDENT" && (
+                <>
+                  <p><strong className="text-white">Roll No:</strong> {createForm.rollNumber || "-"}</p>
+                  <p><strong className="text-white">Branch / Sec:</strong> {createForm.branch} - {createForm.section} (Y{createForm.year})</p>
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setConfirmCreateOpen(false)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={doCreate}
+                className="rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-2 text-xs font-semibold text-white shadow-md hover:brightness-110"
+              >
+                Confirm & Create
               </button>
             </div>
           </div>
         </div>
       ) : null}
 
-      <GlassCard>
-        <h3 className="font-display text-lg text-white">Edit Selected User</h3>
-        {!editForm.id ? (
-          <p className="mt-2 text-sm text-soft">Select a user from table to edit.</p>
-        ) : (
-          <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={handleUpdate}>
-            <input
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              placeholder="Name"
-              value={editForm.name}
-              onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))}
-              required
-            />
-            <input
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              placeholder="Email"
-              type="email"
-              value={editForm.email}
-              onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
-              required
-            />
-            <input
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              placeholder="New Password (optional)"
-              type="password"
-              value={editForm.password}
-              onChange={(event) =>
-                setEditForm((prev) => ({ ...prev, password: event.target.value }))
-              }
-            />
-            <select
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-              value={editForm.role}
-              onChange={(event) =>
-                setEditForm((prev) => ({ ...prev, role: event.target.value }))
-              }
-            >
-              {ROLE_OPTIONS.filter((item) => item !== "ALL").map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-
-            {editForm.role === "STUDENT" ? (
-              <>
-                <input
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  placeholder="Roll Number"
-                  value={editForm.rollNumber}
-                  onChange={(event) =>
-                    setEditForm((prev) => ({ ...prev, rollNumber: event.target.value }))
-                  }
-                  required
-                />
-                <input
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  placeholder="Mobile"
-                  value={editForm.mobile}
-                  onChange={(event) =>
-                    setEditForm((prev) => ({
-                      ...prev,
-                      mobile: event.target.value.replace(/\D/g, "").slice(0, 10)
-                    }))
-                  }
-                  required
-                />
-                <select
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  value={editForm.branch}
-                  onChange={(event) => {
-                    const branch = event.target.value;
-                    const sections = getSectionsForBranch(branch);
-                    setEditForm((prev) => ({
-                      ...prev,
-                      branch,
-                      section: sections.includes(prev.section) ? prev.section : sections[0] || ""
-                    }));
-                  }}
-                >
-                  {Object.keys(SECTION_OPTIONS_BY_BRANCH).map((branch) => (
-                    <option key={branch} value={branch}>
-                      {branch}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-                  value={editForm.year}
-                  onChange={(event) => setEditForm((prev) => ({ ...prev, year: event.target.value }))}
-                >
-                  {YEAR_OPTIONS.map((year) => (
-                    <option key={year} value={year}>
-                      Year {year}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-                  value={editForm.section}
-                  onChange={(event) =>
-                    setEditForm((prev) => ({ ...prev, section: event.target.value }))
-                  }
-                >
-                  {getSectionsForBranch(editForm.branch).map((section) => (
-                    <option key={section} value={section}>
-                      {section}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : null}
-
-            {editForm.role === "FACULTY" ? (
-              <input
-                className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-                placeholder="Faculty class IDs (comma separated)"
-                value={editForm.facultyClassIds}
-                onChange={(event) =>
-                  setEditForm((prev) => ({ ...prev, facultyClassIds: event.target.value }))
-                }
-              />
-            ) : null}
-
-            <select
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-              value={editForm.classId}
-              onChange={(event) => setEditForm((prev) => ({ ...prev, classId: event.target.value }))}
-            >
-              <option value="">Class Assignment (Optional)</option>
-              {classes.map((classItem) => (
-                <option key={classItem.id} value={classItem.id}>
-                  {classItem.name} ({classItem.departmentCode}) Y{classItem.year}-{classItem.section}
-                </option>
-              ))}
-            </select>
-
-            <label className="md:col-span-2 flex items-center gap-2 text-sm text-slate-200">
-              <input
-                type="checkbox"
-                checked={editForm.isVerified}
-                onChange={(event) =>
-                  setEditForm((prev) => ({ ...prev, isVerified: event.target.checked }))
-                }
-              />
-              Verified
-            </label>
-
-            <div className="md:col-span-2 flex flex-wrap gap-2">
+      {/* CREATE USER MODAL POPUP */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-white/20 bg-[#141416] p-6 shadow-2xl space-y-5 text-white my-8">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div>
+                <h3 className="font-display text-xl font-bold text-white flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-r from-violetBrand-500 to-brand-500 text-white text-sm font-bold">
+                    +
+                  </span>
+                  Add New User / Faculty
+                </h3>
+                <p className="text-xs text-soft mt-1">
+                  Create a new student, faculty member, smartboard, or administrator.
+                </p>
+              </div>
               <button
-                className="rounded-xl bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/30 disabled:opacity-70"
-                type="submit"
-                disabled={editing}
-              >
-                {editing ? "Updating..." : "Update User"}
-              </button>
-              <button
-                className="rounded-xl bg-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/25"
                 type="button"
-                onClick={() => setEditForm(initialEditForm)}
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setCreateForm(initialCreateForm);
+                }}
+                className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 hover:bg-white/10 hover:text-white transition"
               >
-                Clear Selection
+                ✕
               </button>
             </div>
-          </form>
-        )}
-      </GlassCard>
 
-      {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
+            <form onSubmit={handleCreate} className="space-y-4">
+              {/* Role Selection Tabs */}
+              <div>
+                <label className="block text-xs font-semibold text-soft mb-2 uppercase tracking-wider">
+                  Select User Role
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {ROLE_OPTIONS.filter((r) => r !== "ALL").map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        const sections = getSectionsForBranch(createForm.branch);
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          role: r,
+                          section: sections.includes(prev.section) ? prev.section : sections[0] || ""
+                        }));
+                      }}
+                      className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-xs font-semibold transition ${
+                        createForm.role === r
+                          ? "border-brand-400 bg-brand-500/20 text-white shadow-md"
+                          : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <PortalIcon name={getRoleIcon(r)} className="h-4 w-4" />
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Core Fields */}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="block text-xs text-soft mb-1">Full Name *</label>
+                  <input
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+                    placeholder="Enter full name"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-soft mb-1">Email Address *</label>
+                  <input
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+                    placeholder="name@cmrcet.ac.in"
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-soft mb-1">Password (min 8 chars) *</label>
+                  <input
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+                    placeholder="Set account password"
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))}
+                    minLength={8}
+                    required
+                  />
+                </div>
+
+                {/* Role Specific: Student */}
+                {createForm.role === "STUDENT" && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Roll Number *</label>
+                      <input
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+                        placeholder="e.g. 21H51A0501"
+                        value={createForm.rollNumber}
+                        onChange={(e) => setCreateForm((prev) => ({ ...prev, rollNumber: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Mobile Number *</label>
+                      <input
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+                        placeholder="10-digit mobile number"
+                        value={createForm.mobile}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            mobile: e.target.value.replace(/\D/g, "").slice(0, 10)
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Branch</label>
+                      <select
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        value={createForm.branch}
+                        onChange={(e) => {
+                          const branch = e.target.value;
+                          const sections = getSectionsForBranch(branch);
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            branch,
+                            section: sections.includes(prev.section) ? prev.section : sections[0] || ""
+                          }));
+                        }}
+                      >
+                        {Object.keys(SECTION_OPTIONS_BY_BRANCH).map((branch) => (
+                          <option key={branch} value={branch} className="bg-slate-900 text-white">
+                            {branch}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Year</label>
+                      <select
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        value={createForm.year}
+                        onChange={(e) => setCreateForm((prev) => ({ ...prev, year: e.target.value }))}
+                      >
+                        {YEAR_OPTIONS.map((y) => (
+                          <option key={y} value={y} className="bg-slate-900 text-white">
+                            Year {y}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-soft mb-1">Section</label>
+                      <select
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        value={createForm.section}
+                        onChange={(e) => setCreateForm((prev) => ({ ...prev, section: e.target.value }))}
+                      >
+                        {getSectionsForBranch(createForm.branch).map((sec) => (
+                          <option key={sec} value={sec} className="bg-slate-900 text-white">
+                            {sec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* Role Specific: Faculty */}
+                {createForm.role === "FACULTY" && (
+                  <div className="md:col-span-2">
+                    <label className="block text-xs text-soft mb-1">Faculty Assigned Class IDs (Comma-separated)</label>
+                    <input
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-brand-400"
+                      placeholder="e.g. 64abc123, 64abc456"
+                      value={createForm.facultyClassIds}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, facultyClassIds: e.target.value }))}
+                    />
+                  </div>
+                )}
+
+                {/* Class Assignment */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-soft mb-1">Class Assignment (Optional)</label>
+                  <select
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                    value={createForm.classId}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, classId: e.target.value }))}
+                  >
+                    <option value="" className="bg-slate-900 text-white">Select Class (Optional)</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                        {c.name} ({c.departmentCode}) Y{c.year}-{c.section}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2 flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="create-verified-check"
+                    checked={createForm.isVerified}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, isVerified: e.target.checked }))}
+                    className="h-4 w-4 rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-400 cursor-pointer"
+                  />
+                  <label htmlFor="create-verified-check" className="text-sm text-slate-200 cursor-pointer">
+                    Mark account as verified immediately
+                  </label>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setCreateForm(initialCreateForm);
+                  }}
+                  className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:brightness-110 disabled:opacity-50 transition"
+                >
+                  {creating ? "Creating..." : "Create User"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT USER MODAL POPUP */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-white/20 bg-[#141416] p-6 shadow-2xl space-y-5 text-white my-8">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div>
+                <h3 className="font-display text-xl font-bold text-white flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-sm">
+                    ✎
+                  </span>
+                  Edit {editForm.role} Account
+                </h3>
+                <p className="text-xs text-soft mt-1">
+                  Updating details for <strong className="text-white">{editForm.name || "User"}</strong> ({editForm.email})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditForm(initialEditForm);
+                }}
+                className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 hover:bg-white/10 hover:text-white transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdate} className="space-y-4">
+              {/* Role Selection Tabs */}
+              <div>
+                <label className="block text-xs font-semibold text-soft mb-2 uppercase tracking-wider">
+                  Role
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {ROLE_OPTIONS.filter((r) => r !== "ALL").map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() =>
+                        setEditForm((prev) => ({ ...prev, role: r }))
+                      }
+                      className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-xs font-semibold transition ${
+                        editForm.role === r
+                          ? "border-brand-400 bg-brand-500/20 text-white shadow-md"
+                          : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <PortalIcon name={getRoleIcon(r)} className="h-4 w-4" />
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Core Fields */}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="block text-xs text-soft mb-1">Full Name *</label>
+                  <input
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                    placeholder="Full name"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-soft mb-1">Email Address *</label>
+                  <input
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                    placeholder="Email"
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-soft mb-1">New Password (Leave blank to keep unchanged)</label>
+                  <input
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                    placeholder="Enter new password if changing"
+                    type="password"
+                    value={editForm.password}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, password: e.target.value }))}
+                  />
+                </div>
+
+                {/* Role Specific: Student */}
+                {editForm.role === "STUDENT" && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Roll Number *</label>
+                      <input
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        placeholder="Roll number"
+                        value={editForm.rollNumber}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, rollNumber: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Mobile Number *</label>
+                      <input
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        placeholder="Mobile"
+                        value={editForm.mobile}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            mobile: e.target.value.replace(/\D/g, "").slice(0, 10)
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Branch</label>
+                      <select
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        value={editForm.branch}
+                        onChange={(e) => {
+                          const branch = e.target.value;
+                          const sections = getSectionsForBranch(branch);
+                          setEditForm((prev) => ({
+                            ...prev,
+                            branch,
+                            section: sections.includes(prev.section) ? prev.section : sections[0] || ""
+                          }));
+                        }}
+                      >
+                        {Object.keys(SECTION_OPTIONS_BY_BRANCH).map((branch) => (
+                          <option key={branch} value={branch} className="bg-slate-900 text-white">
+                            {branch}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-soft mb-1">Year</label>
+                      <select
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        value={editForm.year}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, year: e.target.value }))}
+                      >
+                        {YEAR_OPTIONS.map((y) => (
+                          <option key={y} value={y} className="bg-slate-900 text-white">
+                            Year {y}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs text-soft mb-1">Section</label>
+                      <select
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                        value={editForm.section}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, section: e.target.value }))}
+                      >
+                        {getSectionsForBranch(editForm.branch).map((sec) => (
+                          <option key={sec} value={sec} className="bg-slate-900 text-white">
+                            {sec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* Role Specific: Faculty */}
+                {editForm.role === "FACULTY" && (
+                  <div className="md:col-span-2">
+                    <label className="block text-xs text-soft mb-1">Faculty Class IDs (Comma-separated)</label>
+                    <input
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                      placeholder="e.g. 64abc123, 64abc456"
+                      value={editForm.facultyClassIds}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, facultyClassIds: e.target.value }))}
+                    />
+                  </div>
+                )}
+
+                {/* Class Assignment */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-soft mb-1">Class Assignment (Optional)</label>
+                  <select
+                    className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                    value={editForm.classId}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, classId: e.target.value }))}
+                  >
+                    <option value="" className="bg-slate-900 text-white">Select Class (Optional)</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                        {c.name} ({c.departmentCode}) Y{c.year}-{c.section}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2 flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="edit-verified-check"
+                    checked={editForm.isVerified}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, isVerified: e.target.checked }))}
+                    className="h-4 w-4 rounded border-white/20 bg-white/5 text-brand-500 focus:ring-brand-400 cursor-pointer"
+                  />
+                  <label htmlFor="edit-verified-check" className="text-sm text-slate-200 cursor-pointer">
+                    Verified Account
+                  </label>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditForm(initialEditForm);
+                  }}
+                  className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editing}
+                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:brightness-110 disabled:opacity-50 transition"
+                >
+                  {editing ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {message ? <p className="text-sm font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">{message}</p> : null}
+      {error ? <p className="text-sm font-medium text-red-300 bg-red-500/10 border border-red-500/20 p-3 rounded-xl">{error}</p> : null}
 
       <GlassCard>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display text-lg text-white">Users</h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <h3 className="font-display text-lg text-white">Users</h3>
+            <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-soft">
+              {users.length} Total
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search roll no, name, email..."
+              className="rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-soft outline-none focus:border-brand-300 w-48 md:w-56"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
             <label className="text-xs uppercase tracking-[0.12em] text-soft" htmlFor="user-role">
               Role
             </label>
@@ -905,93 +1096,145 @@ export default function AdminUsersPage() {
               onChange={(event) => setSelectedRole(event.target.value)}
             >
               {ROLE_OPTIONS.map((role) => (
-                <option key={role} value={role}>
+                <option key={role} value={role} className="bg-slate-900 text-white">
                   {role}
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:brightness-110 flex items-center gap-1.5"
+            >
+              <span>+</span> Add User / Faculty
+            </button>
           </div>
         </div>
 
         {loading ? <p className="mt-3 text-soft">Loading users...</p> : null}
         {!loading && users.length === 0 ? <p className="mt-3 text-soft">No users found.</p> : null}
 
-        {users.length > 0 ? (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="text-soft">
-                <tr>
-                  <th className="px-3 py-2">User</th>
-                  <th className="px-3 py-2">Email</th>
-                  <th className="px-3 py-2">Role</th>
-                  <th className="px-3 py-2">Verified</th>
-                  <th className="px-3 py-2">Branch</th>
-                  <th className="px-3 py-2">Year</th>
-                  <th className="px-3 py-2">Section</th>
-                  <th className="px-3 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="border-t border-white/10">
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-3">
-                        {user.profilePhoto ? (
-                          <img
-                            src={user.profilePhoto}
-                            alt={`${user.name || "User"} avatar`}
-                            className="h-9 w-9 rounded-full object-cover ring-2 ring-white/10"
-                          />
-                        ) : (
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-slate-200 text-xs font-semibold text-[#141414]">
-                            {getInitials(user.name, user.email)}
-                          </span>
-                        )}
-                        <div>
-                          <p className="font-medium text-white">{user.name}</p>
-                          <p className="text-xs text-soft">{user.rollNumber || user.mobile || "-"}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">{user.email}</td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${getRoleTone(
-                          user.role
-                        )}`}
-                      >
-                        <PortalIcon name={getRoleIcon(user.role)} className="h-3.5 w-3.5" />
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">{user.isVerified ? "Yes" : "No"}</td>
-                    <td className="px-3 py-3">{user.branch || "-"}</td>
-                    <td className="px-3 py-3">{user.year || "-"}</td>
-                    <td className="px-3 py-3">{user.section || "-"}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          className="rounded-lg bg-white/15 px-2 py-1 text-xs text-white"
-                          onClick={() => startEdit(user)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg bg-red-500/20 px-2 py-1 text-xs text-red-100"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+        {(() => {
+          const cleanQuery = searchTerm.trim().toLowerCase();
+          const filteredUsers = users.filter((u) => {
+            if (!cleanQuery) return true;
+            return (
+              (u.name || "").toLowerCase().includes(cleanQuery) ||
+              (u.email || "").toLowerCase().includes(cleanQuery) ||
+              (u.rollNumber || "").toLowerCase().includes(cleanQuery) ||
+              (u.branch || "").toLowerCase().includes(cleanQuery) ||
+              (u.section || "").toLowerCase().includes(cleanQuery)
+            );
+          });
+
+          if (!loading && users.length > 0 && filteredUsers.length === 0) {
+            return <p className="mt-3 text-soft">No users match &quot;{searchTerm}&quot;.</p>;
+          }
+
+          if (filteredUsers.length === 0) return null;
+
+          return (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-soft">
+                  <tr>
+                    <th className="px-3 py-2">User</th>
+                    <th className="px-3 py-2">Email</th>
+                    <th className="px-3 py-2">Role</th>
+                    <th className="px-3 py-2">Verified</th>
+                    <th className="px-3 py-2">Branch</th>
+                    <th className="px-3 py-2">Year</th>
+                    <th className="px-3 py-2">Section</th>
+                    <th className="px-3 py-2">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="border-t border-white/10">
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-3">
+                          {user.profilePhoto ? (
+                            <img
+                              src={user.profilePhoto}
+                              alt={`${user.name || "User"} avatar`}
+                              className="h-9 w-9 rounded-full object-cover ring-2 ring-white/10"
+                            />
+                          ) : (
+                            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-slate-200 text-xs font-semibold text-[#141414]">
+                              {getInitials(user.name, user.email)}
+                            </span>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-white">{user.name}</p>
+                              {user.isCr && (
+                                <span className="rounded-md bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/40">
+                                  CR
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-soft">{user.rollNumber || user.mobile || "-"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">{user.email}</td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${getRoleTone(
+                            user.role
+                          )}`}
+                        >
+                          <PortalIcon name={getRoleIcon(user.role)} className="h-3.5 w-3.5" />
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">{user.isVerified ? "Yes" : "No"}</td>
+                      <td className="px-3 py-3">{user.branch || "-"}</td>
+                      <td className="px-3 py-3">{user.year || "-"}</td>
+                      <td className="px-3 py-3">{user.section || "-"}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {user.role === "STUDENT" && (
+                            <button
+                              type="button"
+                              disabled={togglingCrUserId === user.id}
+                              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${user.isCr
+                                ? "bg-amber-500/20 text-amber-200 border border-amber-400/50 hover:bg-amber-500/30"
+                                : "bg-indigo-500/20 text-indigo-200 border border-indigo-400/50 hover:bg-indigo-500/30"
+                                } disabled:opacity-50`}
+                              onClick={() => handleToggleCr(user)}
+                              title={user.isCr ? "Remove Class Representative role" : "Assign as Class Representative"}
+                            >
+                              {togglingCrUserId === user.id
+                                ? "Saving..."
+                                : user.isCr
+                                  ? "Remove CR"
+                                  : "Assign CR"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="rounded-lg bg-white/15 px-2.5 py-1 text-xs font-semibold text-white hover:bg-white/25 transition"
+                            onClick={() => startEdit(user)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg bg-red-500/20 text-red-200 border border-red-500/30 px-2.5 py-1 text-xs font-semibold hover:bg-red-500/30 transition"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
       </GlassCard>
 
       <GlassCard>

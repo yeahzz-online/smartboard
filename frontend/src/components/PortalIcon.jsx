@@ -1,5 +1,6 @@
 export function getNavIconName(href = "") {
   if (href.includes("/dashboard") || href.includes("/home")) return "dashboard";
+  if (href.includes("/cr")) return "classes";
   if (href.includes("/features")) return "analytics";
   if (href.includes("/departments")) return "departments";
   if (href.includes("/classes")) return "classes";

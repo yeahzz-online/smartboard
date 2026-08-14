@@ -502,7 +502,8 @@ const completeStudentSetup = asyncHandler(async (req, res) => {
       section: updatedUser.section,
       mobile: updatedUser.mobile,
       profilePhoto: updatedUser.profilePhoto,
-      classId: updatedUser.classId || null
+      classId: updatedUser.classId || null,
+      isCr: Boolean(updatedUser.isCr)
     }
   });
 });
@@ -561,7 +562,8 @@ const login = asyncHandler(async (req, res) => {
       section: user.section,
       mobile: user.mobile,
       profilePhoto: user.profilePhoto,
-      classId: user.classId
+      classId: user.classId,
+      isCr: Boolean(user.isCr)
     }
   });
 });
@@ -1363,7 +1365,7 @@ const getSmartboardLibrary = asyncHandler(async (req, res) => {
     subjectId: { $in: subjectIds },
     category: { $in: ["STUDENT_PRESENTATION", "LECTURE_MATERIAL"] }
   })
-    .populate({ path: "uploadedBy", select: "name email rollNumber" })
+    .populate({ path: "uploadedBy", select: "name email rollNumber profilePhoto" })
     .sort({ createdAt: -1 })
     .lean()
     .exec();
@@ -1372,6 +1374,8 @@ const getSmartboardLibrary = asyncHandler(async (req, res) => {
   const subjects = subjectDocs.map((item) => {
     const classDoc = item.classId || null;
     const classId = classDoc?._id ? String(classDoc._id) : null;
+    const facultyDoc = item.facultyId || null;
+    const facultyId = facultyDoc?._id ? String(facultyDoc._id) : (facultyDoc ? String(facultyDoc) : null);
 
     if (classDoc && classId && !classesMap.has(classId)) {
       classesMap.set(classId, {
@@ -1388,6 +1392,7 @@ const getSmartboardLibrary = asyncHandler(async (req, res) => {
       id: String(item._id),
       name: item.name || null,
       code: item.code || null,
+      facultyId,
       classId,
       className: classDoc?.name || null,
       year: classDoc?.year || null,
@@ -1428,7 +1433,8 @@ const getSmartboardLibrary = asyncHandler(async (req, res) => {
         uploadedAt: item.createdAt || null,
         uploadedByName: item.uploadedBy?.name || null,
         uploadedByEmail: item.uploadedBy?.email || null,
-        rollNumber: item.uploadedBy?.rollNumber || null
+        rollNumber: item.uploadedBy?.rollNumber || item.rollNumber || null,
+        uploadedByPhoto: item.uploadedBy?.profilePhoto || null
       };
     })
   );

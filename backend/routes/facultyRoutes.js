@@ -4,11 +4,13 @@ const {
   changeFacultyPassword,
   completeLectureMaterialUpload,
   createFacultyAnnouncement,
+  getClassUploadStatus,
   getFacultyClassesList,
   getFacultyDashboard,
   getFacultyLectureMaterials,
   getFacultyNotifications,
   getFacultyPresentations,
+  getFacultyPresentationDownloadUrl,
   getFacultyProfile,
   getFacultyStudents,
   getFacultySubjectStudents,
@@ -30,6 +32,7 @@ router.get("/classes", getFacultyClassesList);
 router.get("/subjects", getFacultySubjects);
 router.get("/subjects/:subjectId/students", getFacultySubjectStudents);
 router.get("/presentations", getFacultyPresentations);
+router.get("/presentations/:presentationId/url", getFacultyPresentationDownloadUrl);
 router.put("/presentations/:presentationId/review", reviewFacultyPresentation);
 router.post("/materials/presign", requestLectureMaterialUploadUrl);
 router.post("/materials/complete", completeLectureMaterialUpload);
@@ -41,5 +44,6 @@ router.get("/profile", getFacultyProfile);
 router.put("/profile", updateFacultyProfile);
 router.put("/profile/password", changeFacultyPassword);
 router.get("/smartboard/summary", getSmartboardSummary);
+router.get("/class-status", getClassUploadStatus);
 
 module.exports = router;

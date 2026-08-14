@@ -56,10 +56,10 @@ function getProxyUploadUrl(origin, uploadToken) {
   return `${prefix}/api/storage/upload?token=${encodeURIComponent(String(uploadToken))}`;
 }
 
-async function createPresignedDownloadUrl({ key, expiresIn = 3600 }) {
+async function createPresignedDownloadUrl({ key, expiresIn = 3600, origin = "" }) {
   const provider = getStorageProvider();
   if (provider === "local") {
-    throw new Error("Local storage does not support signed download URLs");
+    return buildFileUrl({ origin, key });
   }
   return supabaseStorageService.createPresignedDownloadUrl({ key, expiresIn });
 }

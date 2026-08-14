@@ -6,6 +6,7 @@ const {
   completeStudentPresentationUpload,
   deleteStudentPresentation,
   getStudentActivity,
+  getStudentClassStatus,
   getStudentNotifications,
   getStudentProfile,
   getStudentHome,
@@ -13,6 +14,7 @@ const {
   getStudentUploads,
   requestPresentationReplaceUploadUrl,
   requestUploadUrl,
+  updateClassDriveLink,
   updateStudentPresentation,
   updateStudentProfile
 } = require("../controllers/studentController");
@@ -26,6 +28,8 @@ router.use(verifyJWT, authorizeRoles(ROLES.STUDENT));
 router.get("/home", getStudentHome);
 router.get("/dashboard", getStudentHome);
 router.get("/subjects", getStudentSubjects);
+router.get("/class-status", getStudentClassStatus);
+router.put("/class-status/drive-link", updateClassDriveLink);
 router.get("/uploads", getStudentUploads);
 router.get("/presentations", getStudentUploads);
 router.get("/notifications", getStudentNotifications);

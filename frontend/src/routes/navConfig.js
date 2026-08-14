@@ -1,15 +1,14 @@
 export const navByRole = {
   STUDENT: [
     { label: "Dashboard", href: "/student/home" },
+    { label: "Class Overview (CR)", href: "/student/cr", crOnly: true },
     { label: "Upload", href: "/student/upload" },
     { label: "My Presentations", href: "/student/presentations" },
-    { label: "My Subjects", href: "/student/subjects" },
     { label: "Profile", href: "/student/profile" }
   ],
   FACULTY: [
     { label: "Dashboard", href: "/faculty/dashboard" },
     { label: "Classes", href: "/faculty/classes" },
-    { label: "Subjects", href: "/faculty/subjects" },
     { label: "Review", href: "/faculty/review" },
     { label: "Materials", href: "/faculty/materials" },
     { label: "Students", href: "/faculty/students" },

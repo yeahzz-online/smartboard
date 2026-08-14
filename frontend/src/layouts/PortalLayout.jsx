@@ -8,7 +8,7 @@ import { navByRole } from "../routes/navConfig";
 import { getStudentUiPrefs, STUDENT_UI_PREFS_EVENT } from "../services/studentUiPrefs";
 
 export default function PortalLayout() {
-  const { role, logout } = useAuth();
+  const { role } = useAuth();
   const navItems = navByRole[role] || [];
   const isAdmin = role === "ADMIN";
   const isStudent = role === "STUDENT";
@@ -48,36 +48,41 @@ export default function PortalLayout() {
 
   if (role === "SMARTBOARD") {
     return (
-      <div className="min-h-screen p-3 md:p-4">
-        <main className="content-fade-in h-[calc(100vh-1.5rem)] pb-16">
+      <div className="h-screen w-screen overflow-hidden">
+        <main className="h-full w-full">
           <Outlet />
         </main>
-        <div className="fixed bottom-4 left-4 z-50">
-          <button
-            type="button"
-            onClick={logout}
-            className="inline-flex items-center gap-2 rounded-xl border border-red-600 bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-          >
-            Logout
-          </button>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className={`portal-shell min-h-screen lg:flex ${isAdmin ? "admin-shell" : ""} ${isStudent ? "student-shell" : ""}`}>
-      <div className={isAdmin ? "hidden lg:block lg:w-72 admin-sidebar-wrap" : ""}>
+    <div className={`portal-shell h-screen overflow-hidden flex flex-col lg:flex-row ${isAdmin ? "admin-shell" : ""} ${isStudent ? "student-shell" : ""}`}>
+      {/* Sidebar — desktop only */}
+      <div className={`shrink-0 ${isAdmin ? "hidden lg:block lg:w-72 admin-sidebar-wrap" : "hidden lg:block lg:w-60"}`}>
         <SidebarNav items={navItems} role={role} />
       </div>
-      <div className={`flex-1 p-4 pb-28 lg:p-6 lg:pl-0 ${isAdmin ? "admin-content-wrap" : ""} ${isStudent ? "student-content-wrap" : ""}`}>
-        <div className="portal-content-inner">
+
+      {/* Main column */}
+      <div className={`flex flex-1 flex-col min-h-0 overflow-hidden ${isAdmin ? "admin-content-wrap" : ""} ${isStudent ? "student-content-wrap" : ""}`}>
+        {/* TopBar — floating pill on mobile, normal fixed on desktop */}
+        <div className="shrink-0 hidden lg:block lg:px-6 lg:pt-6 lg:pb-4">
           <TopBar />
+        </div>
+
+        {/* Mobile floating TopBar — fixed pill at top like BottomNav at bottom */}
+        <div className="lg:hidden fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.35rem)] max-w-lg">
+          <TopBar />
+        </div>
+
+        {/* Scrollable page content — extra top padding on mobile to clear floating topbar */}
+        <div className="flex-1 overflow-y-auto px-4 pt-24 pb-28 lg:pt-0 lg:px-6 lg:pb-6">
           <main className={`content-fade-in ${isAdmin ? "admin-main" : ""} ${isStudent ? "student-main" : ""}`}>
             <Outlet />
           </main>
         </div>
       </div>
+
       <BottomNav items={navItems} role={role} />
     </div>
   );

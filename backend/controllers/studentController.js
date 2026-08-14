@@ -12,6 +12,7 @@ const Upload = require("../mongoModels/Upload");
 const User = require("../mongoModels/User");
 const { signUploadToken, verifyUploadToken } = require("../config/jwt");
 const { buildFileUrl, buildUploadUrl, doesUploadedFileExist } = require("../services/storageService");
+const { saveBase64Image } = require("../services/profilePhotoService");
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 
@@ -95,8 +96,12 @@ async function resolveStudentClassId(user) {
 }
 
 async function ensureStudentAndClass(userId) {
-  const user = await getUserById(userId);
+  const user = await User.findById(userId)
+    .select("name email role rollNumber branch year section mobile profilePhoto classId isCr lastLoginAt")
+    .lean()
+    .exec();
   if (!user || user.role !== ROLES.STUDENT) throw new ApiError(404, "Student not found");
+  user.id = String(user._id);
   const classId = await resolveStudentClassId(user);
   return { user, classId };
 }
@@ -249,18 +254,19 @@ async function getStudentAnnouncements({ classId }) {
 
 const getStudentHome = asyncHandler(async (req, res) => {
   const { user, classId } = await ensureStudentAndClass(req.user.userId);
-  const subjects = await getClassSubjects(classId);
-  const subjectIdList = subjects.map((item) => item.id);
 
-  const uploads = await Upload.find({
-    uploadedBy: user.id,
-    category: "STUDENT_PRESENTATION",
-    ...(subjectIdList.length > 0 ? { subjectId: { $in: subjectIdList } } : {})
-  })
-    .populate({ path: "subjectId", select: "name code" })
-    .sort({ createdAt: -1 })
-    .lean()
-    .exec();
+  const [subjects, notifications, uploads] = await Promise.all([
+    getClassSubjects(classId),
+    getStudentAnnouncements({ classId }),
+    Upload.find({
+      uploadedBy: user.id,
+      category: "STUDENT_PRESENTATION"
+    })
+      .populate({ path: "subjectId", select: "name code" })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec()
+  ]);
 
   const latestUploadBySubject = new Map();
   uploads.forEach((item) => {
@@ -284,7 +290,6 @@ const getStudentHome = asyncHandler(async (req, res) => {
   const subjectsCount = subjects.length;
   const pendingCount = Math.max(subjectsCount - subjectsWithStatus.filter((s) => s.uploadedAt).length, 0);
   const recentUploads = uploads.slice(0, 6).map(mapPresentation);
-  const notifications = await getStudentAnnouncements({ classId });
 
   const activityHistory = uploads.slice(0, 10).map((item) => ({
     id: String(item._id),
@@ -306,6 +311,7 @@ const getStudentHome = asyncHandler(async (req, res) => {
       section: user.section,
       mobile: user.mobile,
       profilePhoto: user.profilePhoto,
+      isCr: Boolean(user.isCr),
       lastLoginAt: user.lastLoginAt || null
     },
     metrics: {
@@ -322,8 +328,10 @@ const getStudentHome = asyncHandler(async (req, res) => {
 
 const getStudentSubjects = asyncHandler(async (req, res) => {
   const { user, classId } = await ensureStudentAndClass(req.user.userId);
-  const subjects = await getClassSubjects(classId);
-  const uploads = await getStudentPresentations(user.id);
+  const [subjects, uploads] = await Promise.all([
+    getClassSubjects(classId),
+    getStudentPresentations(user.id)
+  ]);
   const uploadsBySubject = uploads.reduce((acc, item) => {
     const key = String(item.subjectId || "");
     if (!key) return acc;
@@ -771,6 +779,7 @@ const getStudentProfile = asyncHandler(async (req, res) => {
       mobile: user.mobile,
       profilePhoto: user.profilePhoto,
       classId: user.classId,
+      isCr: Boolean(user.isCr),
       lastLoginAt: user.lastLoginAt || null
     }
   });
@@ -793,9 +802,12 @@ const updateStudentProfile = asyncHandler(async (req, res) => {
     patch.mobile = mobile;
   }
   if (req.body.profilePhoto !== undefined) {
-    const value = String(req.body.profilePhoto || "").trim();
-    if (value && !value.startsWith("data:image/") && !/^https?:\/\//i.test(value)) {
+    let value = String(req.body.profilePhoto || "").trim();
+    if (value && !value.startsWith("data:image/") && !/^https?:\/\//i.test(value) && !value.startsWith("/files/")) {
       throw new ApiError(400, "profilePhoto must be an image data URL or valid URL");
+    }
+    if (value.startsWith("data:image/")) {
+      value = saveBase64Image(value, user.id);
     }
     patch.profilePhoto = value || null;
   }
@@ -847,12 +859,203 @@ const changeStudentPassword = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Password changed successfully" });
 });
 
+
+/**
+ * GET /student/class-status
+ * Returns classmates' upload status per subject for the student's own class, with Drive link support.
+ */
+const getStudentClassStatus = asyncHandler(async (req, res) => {
+  const studentId = req.user.userId;
+  const subjectId = String(req.query.subjectId || "").trim();
+
+  const student = await User.findById(studentId).select("classId isCr name email rollNumber").lean().exec();
+  if (!student?.classId) {
+    return res.status(200).json({ subjects: [], students: [], subject: null, stats: null, classInfo: null, isCr: Boolean(student?.isCr) });
+  }
+
+  const classId = student.classId;
+
+  // Run classDoc, subjectDocs, and classmates queries in parallel!
+  const [classDoc, subjectDocs, classmates] = await Promise.all([
+    Class.findById(classId).populate({ path: "departmentId", select: "name code" }).lean().exec(),
+    Subject.find({ classId })
+      .populate({ path: "facultyId", select: "name email" })
+      .sort({ name: 1 })
+      .lean()
+      .exec(),
+    User.find({ role: ROLES.STUDENT, classId, isVerified: true })
+      .select("name email rollNumber profilePhoto isCr mobile")
+      .sort({ rollNumber: 1, name: 1 })
+      .lean()
+      .exec()
+  ]);
+
+  const totalClassmates = classmates.length;
+  const classmateIds = classmates.map((c) => c._id);
+
+  // Fetch all class presentation uploads to compute per-subject summary
+  const allClassUploads = await Upload.find({
+    category: "STUDENT_PRESENTATION",
+    subjectId: { $in: subjectDocs.map((s) => s._id) },
+    uploadedBy: { $in: classmateIds }
+  })
+    .select("uploadedBy subjectId")
+    .lean()
+    .exec();
+
+  const subjectUploadSets = new Map();
+  allClassUploads.forEach((u) => {
+    const sId = String(u.subjectId);
+    if (!subjectUploadSets.has(sId)) subjectUploadSets.set(sId, new Set());
+    subjectUploadSets.get(sId).add(String(u.uploadedBy));
+  });
+
+  const subjectList = subjectDocs.map((s) => {
+    const sId = String(s._id);
+    const uploadedCount = subjectUploadSets.get(sId)?.size || 0;
+    return {
+      id: sId,
+      name: s.name || "",
+      code: s.code || "",
+      facultyName: s.facultyId?.name || null,
+      facultyEmail: s.facultyId?.email || null,
+      totalStudents: totalClassmates,
+      uploadedCount,
+      pendingCount: Math.max(0, totalClassmates - uploadedCount)
+    };
+  });
+
+  // Determine current subject (default to the requested subjectId or first subject in class)
+  let currentSubject = subjectDocs.find((s) => String(s._id) === subjectId);
+  if (!currentSubject && subjectDocs.length > 0) {
+    currentSubject = subjectDocs[0];
+  }
+
+  let students = [];
+  let stats = { total: totalClassmates, uploaded: 0, notUploaded: totalClassmates };
+
+  if (currentSubject) {
+    const subjectUploads = await Upload.find({
+      category: "STUDENT_PRESENTATION",
+      subjectId: currentSubject._id,
+      uploadedBy: { $in: classmateIds }
+    })
+      .populate({ path: "subjectId", select: "name code" })
+      .select("uploadedBy subjectId title fileName fileUrl status createdAt")
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    const uploadMap = subjectUploads.reduce((acc, u) => {
+      const key = String(u.uploadedBy);
+      if (!acc[key]) {
+        acc[key] = { count: 0, latestStatus: u.status, latestAt: u.createdAt, uploads: [] };
+      }
+      acc[key].count += 1;
+      acc[key].uploads.push({
+        id: String(u._id),
+        title: u.title || u.fileName || "Presentation",
+        fileName: u.fileName,
+        fileUrl: u.fileUrl,
+        status: u.status,
+        subjectCode: u.subjectId?.code || currentSubject.code || "",
+        subjectName: u.subjectId?.name || currentSubject.name || "",
+        createdAt: u.createdAt
+      });
+      return acc;
+    }, {});
+
+    students = classmates.map((c) => {
+      const act = uploadMap[String(c._id)];
+      return {
+        id: String(c._id),
+        name: c.name || "",
+        email: c.email || "",
+        rollNumber: c.rollNumber || null,
+        mobile: c.mobile || null,
+        profilePhoto: c.profilePhoto || null,
+        isCr: Boolean(c.isCr),
+        isMe: String(c._id) === String(studentId),
+        hasUploaded: Boolean(act && act.count > 0),
+        uploadsCount: act ? act.count : 0,
+        latestStatus: act ? act.latestStatus : null,
+        latestUploadAt: act ? act.latestAt : null,
+        uploads: act ? act.uploads : []
+      };
+    });
+
+    const uploadedCount = students.filter((s) => s.hasUploaded).length;
+    stats = {
+      total: totalClassmates,
+      uploaded: uploadedCount,
+      notUploaded: totalClassmates - uploadedCount
+    };
+  }
+
+  const classInfo = classDoc
+    ? {
+        id: String(classDoc._id),
+        name: classDoc.name,
+        year: classDoc.year,
+        section: classDoc.section,
+        department: classDoc.departmentId?.name || null,
+        departmentCode: classDoc.departmentId?.code || null,
+        driveFolderUrl: classDoc.driveFolderUrl || ""
+      }
+    : null;
+
+  return res.status(200).json({
+    subjects: subjectList,
+    selectedSubjectId: currentSubject ? String(currentSubject._id) : null,
+    subject: currentSubject
+      ? {
+          id: String(currentSubject._id),
+          name: currentSubject.name,
+          code: currentSubject.code,
+          facultyName: currentSubject.facultyId?.name || null,
+          facultyEmail: currentSubject.facultyId?.email || null
+        }
+      : null,
+    stats,
+    students,
+    classInfo,
+    isCr: Boolean(student.isCr)
+  });
+});
+
+/**
+ * PUT /student/class-status/drive-link
+ * CR or Class Student updates the Google Drive folder link for their class.
+ */
+const updateClassDriveLink = asyncHandler(async (req, res) => {
+  const studentId = req.user.userId;
+  const { driveFolderUrl = "" } = req.body;
+
+  const student = await User.findById(studentId).select("classId isCr").lean().exec();
+  if (!student?.classId) {
+    throw new ApiError(404, "Student is not assigned to any class");
+  }
+
+  const cleanUrl = String(driveFolderUrl || "").trim();
+  if (cleanUrl && !/^https?:\/\//i.test(cleanUrl)) {
+    throw new ApiError(400, "Please enter a valid URL starting with http:// or https://");
+  }
+
+  await Class.updateOne({ _id: student.classId }, { $set: { driveFolderUrl: cleanUrl } });
+
+  res.status(200).json({
+    message: "Class Google Drive link updated successfully",
+    driveFolderUrl: cleanUrl
+  });
+});
+
 module.exports = {
   changeStudentPassword,
   completeStudentPresentationReplace,
   completeStudentPresentationUpload,
   deleteStudentPresentation,
   getStudentActivity,
+  getStudentClassStatus,
   getStudentHome,
   getStudentNotifications,
   getStudentProfile,
@@ -860,6 +1063,7 @@ module.exports = {
   getStudentUploads,
   requestPresentationReplaceUploadUrl,
   requestUploadUrl,
+  updateClassDriveLink,
   updateStudentPresentation,
   updateStudentProfile
 };

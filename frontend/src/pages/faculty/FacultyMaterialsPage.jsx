@@ -175,7 +175,7 @@ export default function FacultyMaterialsPage() {
           <input
             type="file"
             accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
-            className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-1 file:text-white focus:border-brand-300 md:col-span-2"
+            className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-black outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-1 file:text-white focus:border-brand-300 md:col-span-2"
             onChange={(event) => setFile(event.target.files?.[0] || null)}
             required
           />

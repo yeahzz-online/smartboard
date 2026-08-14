@@ -46,6 +46,8 @@ const corsOriginConfig =
       ? allowedOrigins
       : true;
 
+const compression = require("compression");
+
 app.set("trust proxy", 1);
 app.use(helmet());
 app.use(
@@ -54,8 +56,9 @@ app.use(
     credentials: true
   })
 );
-app.use(express.json({ limit: "4mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(compression());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 app.use(
@@ -71,10 +74,11 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", service: "cmr-smart-presentation-backend" });
 });
 
-if (getStorageProvider() === "local") {
-  const uploadDir = getLocalUploadDir();
-  app.use("/files", express.static(uploadDir));
+const uploadsDir = path.resolve(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
+app.use("/files", express.static(uploadsDir, { maxAge: "7d" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/student", studentRoutes);

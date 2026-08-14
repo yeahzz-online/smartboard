@@ -72,7 +72,18 @@ export default function StudentHomePage() {
   const fullName = rawName || "Student";
   const firstName = fullName.split(/\s+/)[0] || "Student";
 
+  const isCr = Boolean(user?.isCr || profile?.isCr);
+
   const quickActions = [
+    ...(isCr
+      ? [
+        {
+          label: "Class Overview (CR)",
+          hint: "Classmates PPTs & Drive",
+          to: "/student/cr"
+        }
+      ]
+      : []),
     {
       label: "Upload Slides",
       hint: "Submit presentation",
@@ -97,6 +108,38 @@ export default function StudentHomePage() {
 
   return (
     <section className="space-y-4 sm:space-y-5">
+      {/* Mobile/Desktop CR Banner */}
+      {isCr && (
+        <GlassCard className="border-amber-400/40 bg-black from-amber-950/40 via-amber-900/20 to-slate-900/40 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-900/80 text-xl border border-amber-400/30 shrink-0">
+                👑
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-white text-sm md:text-base">
+                    You are the designated Class Representative (CR)
+                  </h4>
+                  <span className="rounded bg-amber-400/30 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
+                    CR Active
+                  </span>
+                </div>
+                <p className="text-xs text-amber-200/70 mt-0.5">
+                  View your entire class submissions overview and manage the class Google Drive link.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/student/cr"
+              className="rounded-xl bg-amber-400 hover:bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 transition shrink-0 text-center shadow-lg"
+            >
+              Open Class Overview ↗
+            </Link>
+          </div>
+        </GlassCard>
+      )}
+
       <div className="space-y-4 lg:hidden">
         <GlassCard className="rounded-3xl border-white/20 bg-gradient-to-br from-[#7F49B433] via-[#7F49B444] to-[#14141455] p-5">
           <p className="text-sm text-blue-100/85">Student Dashboard</p>

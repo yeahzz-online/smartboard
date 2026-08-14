@@ -29,6 +29,7 @@ import SmartboardConnectPage from "../pages/SmartboardConnectPage";
 import SmartboardViewPage from "../pages/SmartboardViewPage";
 import StudentSetupPage from "../pages/StudentSetupPage";
 import StudentActivityPage from "../pages/student/StudentActivityPage";
+import StudentCrPage from "../pages/student/StudentCrPage";
 import TermsAndConditionsPage from "../pages/TermsAndConditionsPage";
 import StudentHomePage from "../pages/student/StudentHomePage";
 import StudentNotificationsPage from "../pages/student/StudentNotificationsPage";
@@ -73,6 +74,7 @@ export default function AppRouter() {
       <Route element={<PortalLayout />}>
         <Route element={<ProtectedRoute allowedRoles={["STUDENT"]} />}>
           <Route path="/student/home" element={<StudentHomePage />} />
+          <Route path="/student/cr" element={<StudentCrPage />} />
           <Route path="/student/subjects" element={<StudentSubjectsPage />} />
           <Route path="/student/upload" element={<StudentUploadPage />} />
           <Route path="/student/presentations" element={<StudentPresentationsPage />} />

@@ -32,6 +32,10 @@ const classSchema = new mongoose.Schema(
     smartboardAccessKeyHash: {
       type: String,
       default: ""
+    },
+    driveFolderUrl: {
+      type: String,
+      default: ""
     }
   },
   {

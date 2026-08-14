@@ -1,5 +1,6 @@
 const { Types } = require("mongoose");
 const User = require("../mongoModels/User");
+const { saveBase64Image } = require("../services/profilePhotoService");
 
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
@@ -13,7 +14,7 @@ function mapUser(userDoc) {
   if (!userDoc) return null;
 
   return {
-    id: userDoc.id,
+    id: userDoc.id || String(userDoc._id),
     name: userDoc.name,
     email: userDoc.email,
     passwordHash: userDoc.passwordHash,
@@ -26,6 +27,7 @@ function mapUser(userDoc) {
     profilePhoto: userDoc.profilePhoto,
     classId: userDoc.classId ? String(userDoc.classId) : null,
     isVerified: Boolean(userDoc.isVerified),
+    isCr: Boolean(userDoc.isCr),
     lastLoginAt: userDoc.lastLoginAt || null,
     createdAt: userDoc.createdAt
   };
@@ -45,6 +47,7 @@ async function createUser({
   classId = null,
   isVerified = false
 }) {
+  const photoUrl = saveBase64Image(profilePhoto);
   const created = await User.create({
     name,
     email,
@@ -55,7 +58,7 @@ async function createUser({
     year,
     section,
     mobile,
-    profilePhoto,
+    profilePhoto: photoUrl,
     classId,
     isVerified
   });
@@ -75,7 +78,7 @@ async function updatePendingUser(userId, data) {
   if (data.year !== undefined) updatePayload.year = data.year || null;
   if (data.section !== undefined) updatePayload.section = data.section || null;
   if (data.mobile !== undefined) updatePayload.mobile = data.mobile || null;
-  if (data.profilePhoto !== undefined) updatePayload.profilePhoto = data.profilePhoto || null;
+  if (data.profilePhoto !== undefined) updatePayload.profilePhoto = saveBase64Image(data.profilePhoto, userId) || null;
   if (data.classId !== undefined) updatePayload.classId = data.classId || null;
 
   if (!Object.keys(updatePayload).length) return { modifiedCount: 0 };
@@ -91,7 +94,7 @@ async function updatePendingUser(userId, data) {
 async function getUserByEmail(email) {
   const normalized = normalizeEmail(email);
   if (!normalized) return null;
-  const userDoc = await User.findOne({ email: normalized }).exec();
+  const userDoc = await User.findOne({ email: normalized }).lean().exec();
   return mapUser(userDoc);
 }
 
@@ -103,11 +106,11 @@ async function getUserByLoginIdentifier(identifier) {
     return getUserByEmail(normalized);
   }
 
-  const byRollNumber = await User.findOne({ rollNumber: normalized.toUpperCase() }).exec();
+  const byRollNumber = await User.findOne({ rollNumber: normalized.toUpperCase() }).lean().exec();
   if (byRollNumber) return mapUser(byRollNumber);
 
   const aliasRegex = new RegExp(`^${escapeRegex(normalized.toLowerCase())}@`, "i");
-  const aliasMatches = await User.find({ email: { $regex: aliasRegex } }).limit(2).exec();
+  const aliasMatches = await User.find({ email: { $regex: aliasRegex } }).limit(2).lean().exec();
   if (aliasMatches.length === 1) {
     return mapUser(aliasMatches[0]);
   }
@@ -117,7 +120,7 @@ async function getUserByLoginIdentifier(identifier) {
 
 async function getUserById(userId) {
   if (!Types.ObjectId.isValid(userId)) return null;
-  const userDoc = await User.findById(userId).exec();
+  const userDoc = await User.findById(userId).lean().exec();
   return mapUser(userDoc);
 }
 
@@ -128,7 +131,7 @@ async function markUserAsVerified(userId) {
 
 async function listUsersByRole(role) {
   const filter = role ? { role } : {};
-  const users = await User.find(filter).sort({ createdAt: -1 }).exec();
+  const users = await User.find(filter).sort({ createdAt: -1 }).lean().exec();
   return users.map((userDoc) => {
     const mapped = mapUser(userDoc);
     delete mapped.passwordHash;
@@ -163,6 +166,7 @@ async function markUserLogin(userId) {
 
 async function updateStudentSetup(userId, data) {
   if (!Types.ObjectId.isValid(userId)) return { modifiedCount: 0 };
+  const photoUrl = saveBase64Image(data.profilePhoto, userId);
 
   return User.updateOne(
     { _id: userId, role: "STUDENT" },
@@ -174,10 +178,18 @@ async function updateStudentSetup(userId, data) {
         branch: data.branch,
         section: data.section,
         mobile: data.mobile,
-        profilePhoto: data.profilePhoto || null,
+        profilePhoto: photoUrl || null,
         classId: data.classId || null
       }
     }
+  );
+}
+
+async function assignCr(userId, isCr) {
+  if (!Types.ObjectId.isValid(userId)) return { modifiedCount: 0 };
+  return User.updateOne(
+    { _id: userId, role: "STUDENT" },
+    { $set: { isCr: Boolean(isCr) } }
   );
 }
 
@@ -191,5 +203,6 @@ module.exports = {
   markUserAsVerified,
   updateStudentSetup,
   updatePendingUser,
-  updateUserPassword
+  updateUserPassword,
+  assignCr
 };

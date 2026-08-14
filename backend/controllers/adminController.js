@@ -299,6 +299,7 @@ function mapUserForResponse(userDoc) {
     mobile: userDoc.mobile || null,
     classId: userDoc.classId ? String(userDoc.classId) : null,
     isVerified: Boolean(userDoc.isVerified),
+    isCr: Boolean(userDoc.isCr),
     createdAt: userDoc.createdAt
   };
 }
@@ -2250,7 +2251,31 @@ const getAnnouncementsForAdmin = asyncHandler(async (req, res) => {
   });
 });
 
+const assignCrRole = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { isCr = true, classId } = req.body;
+  if (!Types.ObjectId.isValid(userId)) throw new ApiError(400, "userId is invalid");
+
+  const user = await User.findById(userId).exec();
+  if (!user) throw new ApiError(404, "User not found");
+  if (user.role !== ROLES.STUDENT) {
+    throw new ApiError(400, "CR role can only be assigned to student accounts");
+  }
+
+  user.isCr = Boolean(isCr);
+  if (classId && Types.ObjectId.isValid(classId)) {
+    user.classId = classId;
+  }
+  await user.save();
+
+  res.status(200).json({
+    message: user.isCr ? "Student assigned as Class Representative (CR)" : "Class Representative (CR) role removed",
+    user: mapUserForResponse(user)
+  });
+});
+
 module.exports = {
+  assignCrRole,
   bulkImportAcademicByAdmin,
   bulkImportUsersByAdmin,
   createSubjectsBulk,

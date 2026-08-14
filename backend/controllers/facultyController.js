@@ -9,6 +9,7 @@ const Upload = require("../mongoModels/Upload");
 const User = require("../mongoModels/User");
 const { signUploadToken, verifyUploadToken } = require("../config/jwt");
 const { buildFileUrl, buildUploadUrl, doesUploadedFileExist } = require("../services/storageService");
+const { saveBase64Image } = require("../services/profilePhotoService");
 const { createUpload } = require("../models/uploadModel");
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -784,9 +785,12 @@ const updateFacultyProfile = asyncHandler(async (req, res) => {
     patch.mobile = mobile || null;
   }
   if (req.body.profilePhoto !== undefined) {
-    const value = String(req.body.profilePhoto || "").trim();
-    if (value && !value.startsWith("data:image/") && !/^https?:\/\//i.test(value)) {
+    let value = String(req.body.profilePhoto || "").trim();
+    if (value && !value.startsWith("data:image/") && !/^https?:\/\//i.test(value) && !value.startsWith("/files/")) {
       throw new ApiError(400, "profilePhoto must be an image data URL or valid URL");
+    }
+    if (value.startsWith("data:image/")) {
+      value = saveBase64Image(value, faculty.id);
     }
     patch.profilePhoto = value || null;
   }
@@ -900,15 +904,162 @@ const getSmartboardSummary = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /faculty/class-status
+ * Returns all students in a subject's class with upload/not-uploaded status.
+ * Query params: subjectId (required), search (optional name/roll filter)
+ */
+const getClassUploadStatus = asyncHandler(async (req, res) => {
+  const facultyId = req.user.userId;
+  const subjectId = String(req.query.subjectId || "").trim();
+  const search = String(req.query.search || "").trim().toLowerCase();
+
+  if (!subjectId) {
+    // Return list of faculty's subjects when no subjectId given
+    const subjectDocs = await Subject.find({ facultyId })
+      .populate({ path: "classId", select: "name year section departmentId", populate: { path: "departmentId", select: "name code" } })
+      .sort({ name: 1 })
+      .lean()
+      .exec();
+
+    const subjects = subjectDocs.map((s) => ({
+      id: String(s._id),
+      name: s.name || "",
+      code: s.code || "",
+      classId: s.classId ? String(s.classId._id) : null,
+      className: s.classId
+        ? `${s.classId.departmentId?.code || ""} ${s.classId.year ? `Y${s.classId.year}` : ""} ${s.classId.section || ""}`.trim()
+        : null
+    }));
+
+    return res.status(200).json({ subjects, students: [], subject: null });
+  }
+
+  if (!Types.ObjectId.isValid(subjectId)) throw new ApiError(400, "subjectId is invalid");
+
+  const subject = await Subject.findOne({ _id: subjectId, facultyId })
+    .populate({ path: "classId", select: "name year section departmentId", populate: { path: "departmentId", select: "name code" } })
+    .lean()
+    .exec();
+  if (!subject) throw new ApiError(404, "Assigned subject not found");
+
+  const studentQuery = {
+    role: ROLES.STUDENT,
+    classId: subject.classId._id,
+    isVerified: true
+  };
+
+  const students = await User.find(studentQuery)
+    .select("name email rollNumber branch year section profilePhoto")
+    .sort({ rollNumber: 1, name: 1 })
+    .lean()
+    .exec();
+
+  const uploads = await Upload.find({
+    subjectId,
+    category: "STUDENT_PRESENTATION",
+    uploadedBy: { $in: students.map((s) => s._id) }
+  })
+    .select("uploadedBy status createdAt")
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+
+  const uploadMap = uploads.reduce((acc, u) => {
+    const key = String(u.uploadedBy);
+    if (!acc[key]) acc[key] = { count: 0, latestStatus: u.status, latestAt: u.createdAt };
+    acc[key].count += 1;
+    return acc;
+  }, {});
+
+  let result = students.map((s) => {
+    const act = uploadMap[String(s._id)];
+    return {
+      id: String(s._id),
+      name: s.name || "",
+      email: s.email || "",
+      rollNumber: s.rollNumber || null,
+      profilePhoto: s.profilePhoto || null,
+      hasUploaded: Boolean(act),
+      uploadsCount: act ? act.count : 0,
+      latestStatus: act ? act.latestStatus : null,
+      latestUploadAt: act ? act.latestAt : null
+    };
+  });
+
+  if (search) {
+    result = result.filter(
+      (s) =>
+        (s.name || "").toLowerCase().includes(search) ||
+        (s.rollNumber || "").toLowerCase().includes(search) ||
+        (s.email || "").toLowerCase().includes(search)
+    );
+  }
+
+  const totalStudents = result.length;
+  const uploadedCount = result.filter((s) => s.hasUploaded).length;
+  const notUploadedCount = totalStudents - uploadedCount;
+
+  const classLabel = subject.classId
+    ? `${subject.classId.departmentId?.code || ""} Y${subject.classId.year || ""} ${subject.classId.section || ""}`.trim()
+    : "";
+
+  return res.status(200).json({
+    subject: {
+      id: String(subject._id),
+      name: subject.name,
+      code: subject.code,
+      classLabel
+    },
+    stats: { total: totalStudents, uploaded: uploadedCount, notUploaded: notUploadedCount },
+    students: result
+  });
+});
+
+const getFacultyPresentationDownloadUrl = asyncHandler(async (req, res) => {
+  const { presentationId } = req.params;
+  if (!Types.ObjectId.isValid(presentationId)) {
+    throw new ApiError(400, "presentationId is invalid");
+  }
+
+  const uploadDoc = await Upload.findById(presentationId).lean().exec();
+  if (!uploadDoc) throw new ApiError(404, "Presentation not found");
+
+  const key = uploadDoc.s3Key || uploadDoc.key;
+  let fileUrl = uploadDoc.fileUrl;
+
+  if (key) {
+    try {
+      fileUrl = await createPresignedDownloadUrl({
+        key,
+        expiresIn: 7200,
+        origin: getRequestOrigin(req)
+      });
+    } catch (_err) {
+      fileUrl = uploadDoc.fileUrl;
+    }
+  }
+
+  res.status(200).json({
+    ok: true,
+    fileUrl,
+    officeViewerUrl: buildOfficeViewerUrl(fileUrl),
+    fileName: uploadDoc.fileName,
+    title: uploadDoc.title
+  });
+});
+
 module.exports = {
   changeFacultyPassword,
   completeLectureMaterialUpload,
   createFacultyAnnouncement,
+  getClassUploadStatus,
   getFacultyClassesList,
   getFacultyDashboard,
   getFacultyLectureMaterials,
   getFacultyNotifications,
   getFacultyPresentations,
+  getFacultyPresentationDownloadUrl,
   getFacultyProfile,
   getFacultyStudents,
   getFacultySubjectStudents,

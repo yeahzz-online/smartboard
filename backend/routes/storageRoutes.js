@@ -160,6 +160,7 @@ router.get('/list', verifyJWT, async (req, res, next) => {
 // Return a signed URL for an upload record by uploadId. Requires authentication and role checks.
 const { ROLES } = require('../config/constants');
 const Upload = require('../mongoModels/Upload');
+const User = require('../mongoModels/User');
 
 router.get('/file-url', verifyJWT, async (req, res, next) => {
   try {
@@ -169,21 +170,35 @@ router.get('/file-url', verifyJWT, async (req, res, next) => {
     const uploadDoc = await Upload.findById(uploadId).lean().exec();
     if (!uploadDoc) return res.status(404).json({ ok: false, message: 'Upload not found' });
 
-    // Authorization: allow admins and faculty to access any file; students can access their own uploads; smartboard role allowed.
+    // Authorization: allow admins and faculty to access any file; students can access their own uploads or class files if CR.
     const role = String(req.user.role || '').toUpperCase();
     const userId = String(req.user.userId || '');
     if (role !== ROLES.ADMIN && role !== ROLES.FACULTY && role !== ROLES.SMARTBOARD) {
-      // student or other: must be owner
       if (String(uploadDoc.uploadedBy || '') !== userId) {
-        return res.status(403).json({ ok: false, message: 'Forbidden' });
+        const requester = await User.findById(userId).select("isCr classId").lean().exec();
+        const uploader = await User.findById(uploadDoc.uploadedBy).select("classId").lean().exec();
+        const sameClass = requester?.classId && uploader?.classId && String(requester.classId) === String(uploader.classId);
+        if (!requester?.isCr && !sameClass) {
+          return res.status(403).json({ ok: false, message: 'Forbidden' });
+        }
       }
     }
 
     const key = uploadDoc.s3Key || uploadDoc.key || uploadDoc.fullPath || uploadDoc.path;
-    if (!key) return res.status(404).json({ ok: false, message: 'Upload has no storage key' });
+    let url = uploadDoc.fileUrl;
+    if (key) {
+      try {
+        url = await createPresignedDownloadUrl({
+          key,
+          expiresIn: 7200,
+          origin: `${req.protocol}://${req.get('host')}`
+        });
+      } catch (_e) {
+        url = uploadDoc.fileUrl;
+      }
+    }
 
-    const url = await createPresignedDownloadUrl({ key, expiresIn: 3600 });
-    res.status(200).json({ ok: true, url });
+    res.status(200).json({ ok: true, url, fileName: uploadDoc.fileName, title: uploadDoc.title });
   } catch (error) {
     next(error);
   }

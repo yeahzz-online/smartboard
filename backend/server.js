@@ -28,7 +28,7 @@ function loadEnvFiles() {
   if (fs.existsSync(modeFilePath)) {
     dotenv.config({
       path: modeFilePath,
-      override: false
+      override: true
     });
   }
 }

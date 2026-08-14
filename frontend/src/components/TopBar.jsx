@@ -1,5 +1,6 @@
+import { useState } from "react";
 import useAuth from "../hooks/useAuth";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import PortalIcon, { getNavIconName } from "./PortalIcon";
 import { navByRole } from "../routes/navConfig";
 
@@ -11,13 +12,20 @@ export default function TopBar() {
   const isAdmin = role === "ADMIN";
   const isFaculty = role === "FACULTY";
   const isStudent = role === "STUDENT";
+  const isCr = Boolean(user?.isCr);
   const showPortalLogo = isFaculty || isStudent;
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const activeNav =
     navItems.find(
       (item) =>
         location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
     ) || null;
+
+  const visibleNavItems = isStudent
+    ? navItems.filter((item) => (item.crOnly ? isCr : true))
+    : navItems;
 
   const pageTitle = activeNav?.label || "Overview";
   const displayName = user?.name || "User";
@@ -37,81 +45,98 @@ export default function TopBar() {
   };
 
   const handleLogout = async () => {
+    setMobileMenuOpen(false);
     await logout();
     navigate("/login", { replace: true });
   };
 
   return (
-    <header
-      className={`mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 px-4 py-3 ${
-        isAdmin ? "admin-topbar" : "bg-white/5"
-      } ${isStudent ? "student-topbar" : ""}`}
-    >
-      <div className="flex items-center gap-3">
-        {showPortalLogo ? (
-          <img
-            src="/auth-assets/logo.jpg"
-            alt="CMR logo"
-            className="h-10 w-10 rounded-xl border border-white/15 object-cover"
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-          />
-        ) : null}
-        <span
-          className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
-            isAdmin ? "bg-[#CFCFCF] text-[#141414]" : "bg-white/10 text-white"
-          }`}
-        >
-          <PortalIcon name={getNavIconName(activeNav?.href)} className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-soft">Current Page</p>
-          <h2
-            className={`font-display text-lg sm:text-xl ${
-              isAdmin ? "text-[#141414]" : "text-white"
-            }`}
-          >
-            {pageTitle}
-          </h2>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="hidden text-right sm:block">
-          <p className={`text-sm font-semibold ${isAdmin ? "text-[#141414]" : "text-white"}`}>
-            {displayName}
-          </p>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-soft">{role || "User"}</p>
-        </div>
-        <span
-          className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold ${
-            isAdmin
-              ? "border border-slate-300 bg-slate-200 text-[#141414]"
-              : "bg-gradient-to-br from-brand-500 to-violetBrand-500 text-white"
-          }`}
-          title={displayName || "Account"}
-        >
-          {hasProfilePhoto ? (
+    <>
+      <header
+        className="bottom-nav-glass flex items-center justify-between gap-2 rounded-full px-4 py-3 sm:px-5 sm:py-3.5 transition-all"
+      >
+        {/* Left Side: Logo & Page Title */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          {showPortalLogo ? (
             <img
-              src={avatarSrc}
-              alt="Profile"
-              className="h-full w-full rounded-full object-cover"
-              onError={onAvatarError}
+              src="/auth-assets/logo.jpg"
+              alt="CMR logo"
+              className="h-9 w-9 shrink-0 rounded-xl border border-slate-200 object-cover shadow-sm"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
             />
-          ) : (
-            <span className="text-sm font-semibold">{initials}</span>
-          )}
-        </span>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="inline-flex items-center gap-2 rounded-xl border border-red-600 bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-        >
-          <PortalIcon name="logout" className="h-4 w-4" />
-          
-        </button>
-      </div>
-    </header>
+          ) : null}
+          <span
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-600 transition"
+            style={{
+              background: "rgba(255,255,255,0.80)",
+              border: "1.5px solid rgba(255,255,255,0.90)",
+              boxShadow: "0 2px 8px rgba(20,20,25,0.10)"
+            }}
+          >
+            <PortalIcon name={getNavIconName(activeNav?.href)} className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Page</p>
+            <h2 className="truncate font-display text-base font-bold text-[#141414] sm:text-lg">
+              {pageTitle}
+            </h2>
+          </div>
+        </div>
+
+        {/* Right Side: Profile & Mobile Menu Toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* User Display Name on Tablet/Desktop */}
+          <div className="hidden text-right sm:block">
+            <p className="text-xs font-bold text-[#141414]">{displayName}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{role || "User"}</p>
+          </div>
+
+          {/* User Avatar */}
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-[#141414]"
+            style={{
+              background: "rgba(255,255,255,0.85)",
+              border: "1.5px solid rgba(255,255,255,0.95)",
+              boxShadow: "0 2px 8px rgba(20,20,25,0.10)"
+            }}
+            title={displayName}
+          >
+            {hasProfilePhoto ? (
+              <img
+                src={avatarSrc}
+                alt="Profile"
+                className="h-full w-full rounded-full object-cover"
+                onError={onAvatarError}
+              />
+            ) : (
+              <span>{initials}</span>
+            )}
+          </span>
+
+          {/* Desktop Logout Button */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50"
+            style={{
+              background: "rgba(255,255,255,0.75)",
+              border: "1.5px solid rgba(254,202,202,0.80)",
+              boxShadow: "0 2px 8px rgba(220,38,38,0.10)"
+            }}
+            title="Log Out"
+          >
+            <PortalIcon name="logout" className="h-3.5 w-3.5" />
+            <span>Log Out</span>
+          </button>
+
+
+        </div>
+      </header>
+
+      {/* MOBILE SLIDE-OVER DRAWER MENU */}
+
+    </>
   );
 }

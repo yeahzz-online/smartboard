@@ -3,6 +3,7 @@ const multer = require("multer");
 const path = require("path");
 const { ROLES } = require("../config/constants");
 const {
+  assignCrRole,
   bulkImportAcademicByAdmin,
   bulkImportUsersByAdmin,
   createSubjectsBulk,
@@ -100,6 +101,7 @@ router.post("/announcements", createAnnouncementByAdmin);
 router.put("/departments/:departmentId", updateDepartment);
 router.put("/classes/:classId", updateClass);
 router.put("/subjects/:subjectId", updateSubject);
+router.put("/users/:userId/cr", assignCrRole);
 router.put("/users/:userId", updateUserByAdmin);
 router.put("/settings/mail", upsertMailSettings);
 router.delete("/departments/:departmentId", deleteDepartment);

@@ -44,6 +44,7 @@ export default function StudentUploadPage() {
   const [file, setFile] = useState(null);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
@@ -64,6 +65,36 @@ export default function StudentUploadPage() {
     loadSubjects();
   }, []);
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const droppedFile = files[0];
+      const lowerName = String(droppedFile.name || "").toLowerCase();
+      if (lowerName.endsWith(".ppt") || lowerName.endsWith(".pptx") || lowerName.endsWith(".pdf")) {
+        setFile(droppedFile);
+        setError("");
+      } else {
+        setError("Please drop a valid PowerPoint (.ppt, .pptx) or PDF file");
+      }
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -80,7 +111,7 @@ export default function StudentUploadPage() {
     }
 
     if (!file) {
-      setError("Please choose a PPT, PPTX, or PDF file");
+      setError("Please choose or drop a PPT, PPTX, or PDF file");
       return;
     }
 
@@ -160,7 +191,7 @@ export default function StudentUploadPage() {
     <GlassCard>
       <h3 className="font-display text-lg text-white">Upload Presentation</h3>
       <p className="mt-1 text-sm text-soft">
-        Upload PPT/PPTX/PDF with title, description, and subject mapping.
+        Upload or drag & drop PPT / PPTX / PDF with title, description, and subject mapping.
       </p>
 
       {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
@@ -170,50 +201,76 @@ export default function StudentUploadPage() {
         </p>
       ) : null}
 
-      <form className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2" onSubmit={handleSubmit}>
-        <input
-          className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-          placeholder="Presentation title"
-          value={form.title}
-          onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-          required
-        />
-
-        <textarea
-          className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-          rows={4}
-          placeholder="Description"
-          value={form.description}
-          onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-        />
-
-        <select
-          className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
-          value={form.subjectId}
-          onChange={(event) => setForm((prev) => ({ ...prev, subjectId: event.target.value }))}
-          disabled={loadingSubjects || subjects.length === 0}
-          required
+      <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+        {/* DRAG & DROP FILE ZONE */}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition ${
+            isDragging
+              ? "border-purple-400 bg-purple-500/20 scale-[1.01]"
+              : "border-white/20 bg-white/5 hover:border-white/40"
+          }`}
         >
-          <option value="">{loadingSubjects ? "Loading subjects..." : "Select Subject"}</option>
-          {subjects.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.code} - {item.name}
-            </option>
-          ))}
-        </select>
+          <svg className="h-10 w-10 text-white/70 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <p className="text-sm font-bold text-white">
+            {isDragging ? "Drop your presentation file here!" : "Drag & drop PPT, PPTX, or PDF file here"}
+          </p>
+          <p className="mt-1 text-xs text-soft">or click below to choose file from your device</p>
+          {file && (
+            <div className="mt-3 rounded-xl bg-purple-600/40 px-3 py-1.5 text-xs font-semibold text-white border border-purple-400/40">
+              Selected: {file.name}
+            </div>
+          )}
+        </div>
 
-        <input
-          key={fileInputKey}
-          className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-1 file:text-white focus:border-brand-300"
-          type="file"
-          accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
-          onChange={(event) => setFile(event.target.files?.[0] || null)}
-          disabled={loadingSubjects || subjects.length === 0}
-          required
-        />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <input
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
+            placeholder="Presentation title"
+            value={form.title}
+            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+            required
+          />
+
+          <textarea
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
+            rows={3}
+            placeholder="Description"
+            value={form.description}
+            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+          />
+
+          <select
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300"
+            value={form.subjectId}
+            onChange={(event) => setForm((prev) => ({ ...prev, subjectId: event.target.value }))}
+            disabled={loadingSubjects || subjects.length === 0}
+            required
+          >
+            <option value="">{loadingSubjects ? "Loading subjects..." : "Select Subject"}</option>
+            {subjects.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.code} - {item.name}
+              </option>
+            ))}
+          </select>
+
+          <input
+            key={fileInputKey}
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-1 file:text-white focus:border-brand-300"
+            type="file"
+            accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
+            onChange={(event) => setFile(event.target.files?.[0] || null)}
+            disabled={loadingSubjects || subjects.length === 0}
+          />
+        </div>
 
         <button
-          className="w-full rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70 md:col-span-2"
+          className="w-full rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70"
           type="submit"
           disabled={submitting || loadingSubjects || subjects.length === 0}
         >
@@ -222,10 +279,9 @@ export default function StudentUploadPage() {
       </form>
 
       {result ? (
-        <div className="mt-4 rounded-xl border text-black-500/100 border-black-200/30 bg-green-500 p-4 text-xs">
-          <h2 className=" text-center text-green-100">Upload completed successfully.</h2>
-          <p className="text-center mt-2 text-green-50">File: {result.fileName}</p>
-          
+        <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/20 p-4 text-xs">
+          <h2 className="text-center font-bold text-emerald-200">Upload completed successfully.</h2>
+          <p className="mt-1 text-center text-emerald-100">File: {result.fileName}</p>
         </div>
       ) : null}
     </GlassCard>
