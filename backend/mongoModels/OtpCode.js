@@ -19,7 +19,13 @@ const otpCodeSchema = new mongoose.Schema(
     },
     purpose: {
       type: String,
-      enum: ["REGISTRATION", "SMARTBOARD_LOGIN", "PASSWORD_RESET"],
+      enum: [
+        "REGISTRATION",
+        "FACULTY_LOGIN",
+        "STUDENT_LOGIN",
+        "SMARTBOARD_LOGIN",
+        "PASSWORD_RESET"
+      ],
       required: true
     },
     contextToken: {

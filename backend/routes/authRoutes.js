@@ -11,6 +11,8 @@ const {
   getStudentSetupOptions,
   getSmartboardLibrary,
   login,
+  requestFacultyLoginOtp,
+  requestStudentLoginOtp,
   logout,
   refreshAccessToken,
   register,
@@ -18,6 +20,8 @@ const {
   requestSmartboardOtp,
   resendRegistrationOtp,
   verifyRegistrationOtp,
+  verifyFacultyLoginOtp,
+  verifyStudentLoginOtp,
   verifySmartboardOtp,
   smartboardAccessLogin
 } = require("../controllers/authController");
@@ -54,6 +58,10 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 
 router.post("/login", loginLimiter, login);
+router.post("/faculty/request-login-otp", requestFacultyLoginOtp);
+router.post("/faculty/verify-login-otp", verifyFacultyLoginOtp);
+router.post("/student/request-login-otp", requestStudentLoginOtp);
+router.post("/student/verify-login-otp", verifyStudentLoginOtp);
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", logout);
 

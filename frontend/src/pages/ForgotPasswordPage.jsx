@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import api from "../services/api";
 
@@ -89,11 +89,12 @@ export default function ForgotPasswordPage() {
       mode="login"
       title="Reset Password."
       subtitle="Request OTP and set a new password."
-      helperText="Remember your password?"
-      helperLinkLabel="Sign In."
+      helperText=""
+      helperLinkLabel=""
       helperLinkTo="/login"
       loading={submitting}
       loadingLabel="Processing..."
+      showAuthTabs={false}
     >
       {!otpSent ? (
         <form className="mt-6 space-y-4" onSubmit={requestOtp}>
@@ -214,11 +215,6 @@ export default function ForgotPasswordPage() {
         </form>
       )}
 
-      <p className="mt-4  text-sm text-soft">
-        <Link className="text-violet-500 hover:text-violet-700" to="/login">
-          Back to login
-        </Link>
-      </p>
     </AuthShell>
   );
 }

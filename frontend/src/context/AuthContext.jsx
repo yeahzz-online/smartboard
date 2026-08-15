@@ -31,6 +31,28 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const requestFacultyLoginOtp = async (email) => {
+    return api.post("/auth/faculty/request-login-otp", { email });
+  };
+
+  const verifyFacultyLoginOtp = async ({ email, otp }) => {
+    const response = await api.post("/auth/faculty/verify-login-otp", { email, otp });
+    const { accessToken, refreshToken, user: responseUser } = response.data;
+    establishSession({ accessToken, refreshToken, user: responseUser });
+    return responseUser;
+  };
+
+  const requestStudentLoginOtp = async (email) => {
+    return api.post("/auth/student/request-login-otp", { email });
+  };
+
+  const verifyStudentLoginOtp = async ({ email, otp }) => {
+    const response = await api.post("/auth/student/verify-login-otp", { email, otp });
+    const { accessToken, refreshToken, user: responseUser } = response.data;
+    establishSession({ accessToken, refreshToken, user: responseUser });
+    return responseUser;
+  };
+
   const register = async (payload) => {
     return api.post("/auth/register", payload);
   };
@@ -83,6 +105,10 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(user),
       role: user?.role || null,
       login,
+      requestFacultyLoginOtp,
+      verifyFacultyLoginOtp,
+      requestStudentLoginOtp,
+      verifyStudentLoginOtp,
       logout,
       establishSession,
       updateUserSession,

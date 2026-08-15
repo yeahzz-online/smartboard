@@ -26,6 +26,7 @@ export default function AuthShell({
   showInstitutionLogo = true,
   loading = false,
   loadingLabel = "Loading...",
+  showAuthTabs = true,
   children
 }) {
   const tabs = AUTH_TABS.map((tab) => ({
@@ -52,7 +53,8 @@ export default function AuthShell({
 
       <div className="mx-auto mt-4 flex w-full max-w-6xl flex-col items-center">
         <div className="w-full rounded-[30px] border border-slate-200 bg-white p-3 shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-        <div className="grid gap-3 md:grid-cols-[132px_1.1fr_1fr]">
+        <div className={`grid gap-3 ${showAuthTabs ? "md:grid-cols-[132px_1.1fr_1fr]" : "md:grid-cols-[1.1fr_1fr]"}`}>
+          {showAuthTabs ? (
           <aside className="rounded-2xl border border-slate-200 bg-white p-2">
             <nav className="flex gap-2 md:h-full md:flex-col">
               {tabs.map((tab) => {
@@ -77,6 +79,7 @@ export default function AuthShell({
               })}
             </nav>
           </aside>
+          ) : null}
 
           <section className={`relative hidden overflow-hidden rounded-2xl p-8 md:flex md:flex-col md:justify-between ${heroGradientClass}`}>
             <div>
@@ -97,12 +100,14 @@ export default function AuthShell({
               <h1 className="font-display text-3xl text-slate-900">{title}</h1>
               <p className="mt-2 text-sm text-slate-600">{subtitle}</p>
             </div>
-            <p className="text-sm text-slate-600">
-              {helperText}{" "}
-              <Link className="font-semibold text-slate-900 hover:text-black" to={helperLinkTo}>
-                {helperLinkLabel}
-              </Link>
-            </p>
+            {helperText || helperLinkLabel ? (
+              <p className="text-sm text-slate-600">
+                {helperText}{" "}
+                <Link className="font-semibold text-slate-900 hover:text-black" to={helperLinkTo}>
+                  {helperLinkLabel}
+                </Link>
+              </p>
+            ) : null}
             {children}
           </section>
         </div>
