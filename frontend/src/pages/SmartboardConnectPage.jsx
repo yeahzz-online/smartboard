@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import useAuth from "../hooks/useAuth";
 import { buildSmartboardUser } from "../services/smartboardSession";
+import { PoweredByYeahzz } from "../components/YeahzzBranding";
 
 export default function SmartboardConnectPage() {
   const { isAuthenticated, role, establishSession } = useAuth();
@@ -157,6 +158,9 @@ export default function SmartboardConnectPage() {
 
             {status ? <p className="mt-4 text-sm text-green-700">{status}</p> : null}
             {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+            <div className="flex justify-center pt-6">
+              <PoweredByYeahzz textClassName="text-slate-600" />
+            </div>
           </div>
         </div>
       </div>

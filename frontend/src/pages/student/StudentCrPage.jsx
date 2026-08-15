@@ -412,7 +412,7 @@ export default function StudentCrPage() {
 
           {/* Folder Details Banner */}
           {currentSubject && (
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4 text-white shadow-xl sm:p-8">
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white from-slate-900 via-indigo-950 to-slate-900 p-4 text-white shadow-xl sm:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -716,22 +716,22 @@ export default function StudentCrPage() {
       {previewModal.isOpen && (
         <div className="fixed inset-0 z-[100] flex h-[100dvh] w-screen items-center justify-center bg-black/95">
           <div className="flex h-[100dvh] w-full flex-col overflow-hidden rounded-none border-0 bg-slate-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-950">
-              <div className="flex items-center gap-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-slate-800 bg-white px-4 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
                 <span className="h-3 w-3 rounded-full bg-emerald-400 animate-pulse" />
-                <h4 className="font-bold text-base text-white truncate max-w-md">
+                <h4 className="max-w-full truncate font-bold text-base text-white">
                   {previewModal.title}
                 </h4>
               </div>
-              <div className="flex items-center gap-3">
-                {previewModal.fileUrl && (
+              <div className="flex items-center justify-center gap-3">
+                {(previewModal.officeViewerUrl || previewModal.fileUrl) && (
                   <a
-                    href={previewModal.fileUrl}
+                    href={previewModal.officeViewerUrl || previewModal.fileUrl}
                     target="_blank"
-                    rel="noreferrer"
-                    className="rounded-xl border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-white/20 bg-black px-3.5 py-1.5 text-xs font-bold text-green-500 hover:bg-green-900 transition"
                   >
-                    Open Original ↗
+                    Open in New Tab ↗
                   </a>
                 )}
                 <button

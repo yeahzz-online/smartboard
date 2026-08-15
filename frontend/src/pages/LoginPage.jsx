@@ -185,7 +185,9 @@ export default function LoginPage({ portalRole = null }) {
           .
         </p>
       </form>
-      
+      <div className="flex justify-center pt-6">
+        <PoweredByYeahzz />
+      </div>
     </AuthShell>
   );
 }

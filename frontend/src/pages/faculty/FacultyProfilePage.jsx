@@ -888,7 +888,9 @@ export default function FacultyProfilePage() {
         </div>
       )}
 
-      <PoweredByYeahzz textClassName="text-[#141414]" className="mt-8" />
+      <div className="flex justify-center pt-8">
+        <PoweredByYeahzz textClassName="text-[#141414]" />
+      </div>
     </section>
   );
 }
