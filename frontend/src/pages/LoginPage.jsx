@@ -69,7 +69,7 @@ function getSafeRedirectPath(location) {
 export default function LoginPage({ portalRole = null }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { login, loading, requestFacultyLoginOtp, verifyFacultyLoginOtp, requestStudentLoginOtp, verifyStudentLoginOtp } = useAuth();
+  const { login, loading, requestFacultyLoginOtp, verifyFacultyLoginOtp, requestStudentLoginOtp, verifyStudentLoginOtp, requestPortalLoginOtp, verifyPortalLoginOtp } = useAuth();
   const routeRole = location.pathname.startsWith("/student/login")
     ? "STUDENT"
     : location.pathname.startsWith("/faculty/login")
@@ -79,8 +79,10 @@ export default function LoginPage({ portalRole = null }) {
       : null;
   const activePortalRole = portalRole || routeRole || "STUDENT";
   const isRootLogin = !portalRole && !routeRole;
-  const supportsOtpLogin = activePortalRole === "FACULTY" || activePortalRole === "STUDENT";
-  const portalCopy = getPortalCopy(activePortalRole);
+  const supportsOtpLogin = isRootLogin || activePortalRole === "FACULTY" || activePortalRole === "STUDENT";
+  const portalCopy = isRootLogin
+    ? { title: "Portal Login", subtitle: "Sign in with your email, roll number, or account ID." }
+    : getPortalCopy(activePortalRole);
   const helperLinkTo =
     activePortalRole === "ADMIN"
       ? "/login"
@@ -108,7 +110,7 @@ export default function LoginPage({ portalRole = null }) {
     event.preventDefault();
     setError("");
     try {
-      const user = await login({ ...form, role: activePortalRole });
+      const user = await login({ ...form, role: isRootLogin ? null : activePortalRole });
       const redirectTo = getSafeRedirectPath(location);
       const targetPath = redirectTo || getRoleLandingPath(user.role);
       navigate(targetPath, { replace: true });
@@ -121,12 +123,12 @@ export default function LoginPage({ portalRole = null }) {
     setError("");
     try {
       if (!otpSent) {
-        const requestOtp = activePortalRole === "FACULTY" ? requestFacultyLoginOtp : requestStudentLoginOtp;
+        const requestOtp = isRootLogin ? requestPortalLoginOtp : activePortalRole === "FACULTY" ? requestFacultyLoginOtp : requestStudentLoginOtp;
         await requestOtp(form.identifier.trim());
         setOtpSent(true);
         return;
       }
-      const verifyOtp = activePortalRole === "FACULTY" ? verifyFacultyLoginOtp : verifyStudentLoginOtp;
+      const verifyOtp = isRootLogin ? verifyPortalLoginOtp : activePortalRole === "FACULTY" ? verifyFacultyLoginOtp : verifyStudentLoginOtp;
       const user = await verifyOtp({ email: form.identifier.trim(), otp: otp.trim() });
       const redirectTo = getSafeRedirectPath(location);
       navigate(redirectTo || getRoleLandingPath(user.role), { replace: true });
@@ -164,7 +166,7 @@ export default function LoginPage({ portalRole = null }) {
             id="login-identifier"
             className={inputClass}
             type="text"
-            placeholder={facultyLoginMode === "otp" && supportsOtpLogin ? `${activePortalRole === "FACULTY" ? "Faculty" : "Student"} email` : activePortalRole === "STUDENT" ? "Roll Number or Email" : activePortalRole === "FACULTY" ? "Faculty email" : "Email or ID"}
+            placeholder={facultyLoginMode === "otp" && supportsOtpLogin ? (isRootLogin ? "Account email" : `${activePortalRole === "FACULTY" ? "Faculty" : "Student"} email`) : isRootLogin ? "Email, Roll Number, or ID" : activePortalRole === "STUDENT" ? "Roll Number or Email" : activePortalRole === "FACULTY" ? "Faculty email" : "Email or ID"}
             value={form.identifier}
             onChange={(event) => setForm((prev) => ({ ...prev, identifier: event.target.value }))}
             required
@@ -219,18 +221,6 @@ export default function LoginPage({ portalRole = null }) {
           .
         </p>
       </form>
-      {isRootLogin ? (
-        <div className="mt-5 flex items-center justify-center gap-3 text-xs text-slate-500">
-          <span>Other portals:</span>
-          <Link className="font-semibold text-slate-700 hover:text-black" to="/faculty/login">
-            Faculty Login
-          </Link>
-          <span aria-hidden="true">|</span>
-          <Link className="font-semibold text-slate-700 hover:text-black" to="/admin/login">
-            Admin Login
-          </Link>
-        </div>
-      ) : null}
       <div className="flex justify-center pt-6">
         <PoweredByYeahzz />
       </div>

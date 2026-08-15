@@ -23,6 +23,7 @@ const otpCodeSchema = new mongoose.Schema(
         "REGISTRATION",
         "FACULTY_LOGIN",
         "STUDENT_LOGIN",
+        "PORTAL_LOGIN",
         "SMARTBOARD_LOGIN",
         "PASSWORD_RESET"
       ],

@@ -22,7 +22,9 @@ export function AuthProvider({ children }) {
   const login = async ({ identifier, password, role = null }) => {
     setLoading(true);
     try {
-      const response = await api.post("/auth/login", { identifier, password, role });
+      const payload = { identifier, password };
+      if (role) payload.role = role;
+      const response = await api.post("/auth/login", payload);
       const { accessToken, refreshToken, user: responseUser } = response.data;
       establishSession({ accessToken, refreshToken, user: responseUser });
       return responseUser;
@@ -48,6 +50,17 @@ export function AuthProvider({ children }) {
 
   const verifyStudentLoginOtp = async ({ email, otp }) => {
     const response = await api.post("/auth/student/verify-login-otp", { email, otp });
+    const { accessToken, refreshToken, user: responseUser } = response.data;
+    establishSession({ accessToken, refreshToken, user: responseUser });
+    return responseUser;
+  };
+
+  const requestPortalLoginOtp = async (email) => {
+    return api.post("/auth/portal/request-login-otp", { email });
+  };
+
+  const verifyPortalLoginOtp = async ({ email, otp }) => {
+    const response = await api.post("/auth/portal/verify-login-otp", { email, otp });
     const { accessToken, refreshToken, user: responseUser } = response.data;
     establishSession({ accessToken, refreshToken, user: responseUser });
     return responseUser;
@@ -109,6 +122,8 @@ export function AuthProvider({ children }) {
       verifyFacultyLoginOtp,
       requestStudentLoginOtp,
       verifyStudentLoginOtp,
+      requestPortalLoginOtp,
+      verifyPortalLoginOtp,
       logout,
       establishSession,
       updateUserSession,

@@ -683,6 +683,45 @@ const verifyStudentLoginOtp = asyncHandler(async (req, res) => {
   });
 });
 
+const requestPortalLoginOtp = asyncHandler(async (req, res) => {
+  const normalizedEmail = normalizeEmail(req.body?.email);
+  if (!normalizedEmail) throw new ApiError(400, "account email is required");
+  const user = await getUserByEmail(normalizedEmail);
+  if (!user || ![ROLES.STUDENT, ROLES.FACULTY, ROLES.ADMIN].includes(user.role)) throw new ApiError(401, "Account not found");
+  if (!user.isVerified) throw new ApiError(403, "Account is not verified");
+  if (user.isActive === false) throw new ApiError(403, "Account is inactive. Contact an administrator");
+  await createAndSendOtp({ email: normalizedEmail, userId: user.id, purpose: OTP_PURPOSES.PORTAL_LOGIN });
+  res.status(200).json({ message: "Login OTP sent to your email" });
+});
+
+const verifyPortalLoginOtp = asyncHandler(async (req, res) => {
+  const normalizedEmail = normalizeEmail(req.body?.email);
+  const otp = String(req.body?.otp || "").trim();
+  if (!normalizedEmail || !otp) throw new ApiError(400, "email and otp are required");
+  const user = await getUserByEmail(normalizedEmail);
+  if (!user || ![ROLES.STUDENT, ROLES.FACULTY, ROLES.ADMIN].includes(user.role)) throw new ApiError(401, "Account not found");
+  if (!user.isVerified) throw new ApiError(403, "Account is not verified");
+  if (user.isActive === false) throw new ApiError(403, "Account is inactive. Contact an administrator");
+  const otpResult = await verifyOtp({ email: normalizedEmail, otp, purpose: OTP_PURPOSES.PORTAL_LOGIN });
+  if (!otpResult.valid) throw mapOtpReasonToError(otpResult.reason);
+  const payload = { userId: user.id, role: user.role };
+  const accessToken = signAccessToken(payload);
+  const refreshToken = signRefreshToken(payload);
+  const decodedRefresh = decodeToken(refreshToken);
+  await saveRefreshToken(user.id, hashToken(refreshToken), new Date(decodedRefresh.exp * 1000));
+  await markUserLogin(user.id);
+  res.status(200).json({
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id, name: user.name, email: user.email, role: user.role,
+      rollNumber: user.rollNumber, year: user.year, branch: user.branch,
+      section: user.section, mobile: user.mobile, profilePhoto: user.profilePhoto,
+      classId: user.classId, isCr: Boolean(user.isCr)
+    }
+  });
+});
+
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const normalizedEmail = normalizeEmail(email);
@@ -1584,6 +1623,7 @@ module.exports = {
   login,
   requestFacultyLoginOtp,
   requestStudentLoginOtp,
+  requestPortalLoginOtp,
   logout,
   refreshAccessToken,
   register,
@@ -1593,6 +1633,7 @@ module.exports = {
   verifyRegistrationOtp,
   verifyFacultyLoginOtp,
   verifyStudentLoginOtp,
+  verifyPortalLoginOtp,
   verifySmartboardOtp,
   smartboardAccessLogin
 };
