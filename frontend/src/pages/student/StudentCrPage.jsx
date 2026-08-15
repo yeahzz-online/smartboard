@@ -207,37 +207,37 @@ export default function StudentCrPage() {
   });
 
   return (
-    <section className="space-y-6 max-w-7xl mx-auto pb-8">
+    <section className="mx-auto min-w-0 max-w-7xl space-y-5 overflow-x-hidden pb-8 sm:space-y-6">
       {/* PAGE STEP 1: MAIN CLASS SUBJECT FOLDERS VIEW */}
       {!selectedSubjectId ? (
         <>
           {/* Top Banner */}
-          <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white from-slate-900 via-purple-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="rounded-full bg-amber-400/90 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-950 shadow">
+          <div className="relative overflow-hidden rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-500 p-4 text-slate-950 shadow-xl sm:p-6">
+            <div className="flex min-w-0 flex-col justify-between gap-5 md:flex-row md:items-center">
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white/50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-950 shadow-sm sm:text-xs">
                     👑 Class Representative (CR) Overview
                   </span>
                   {data.classInfo && (
-                    <span className="text-xs text-slate-300 font-medium">
+                    <span className="text-xs font-medium text-slate-800/75">
                       {data.classInfo.departmentCode || data.classInfo.department} • Year {data.classInfo.year} • Section {data.classInfo.section}
                     </span>
                   )}
                 </div>
-                <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">
+                <h1 className="break-words font-display text-2xl font-bold text-slate-950 sm:text-3xl">
                   {data.classInfo?.name || "Class Subject Folders"}
                 </h1>
-                <p className="text-sm text-slate-300">
+                <p className="text-sm text-slate-800/75">
                   Select a subject folder below to open and view uploaded student presentations.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => loadClassStatus(null)}
-                  className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20"
+                  className="rounded-xl border border-slate-950/10 bg-slate-950 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
                 >
                   🔄 Refresh Status
                 </button>
@@ -256,28 +256,28 @@ export default function StudentCrPage() {
             </div>
 
             {/* Overall Class Progress Summary */}
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 pt-5 border-t border-white/10">
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur-md">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Total Subject Folders</p>
-                <p className="mt-1 text-2xl font-extrabold text-white">{allSubjects.length}</p>
+            <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-950/10 pt-4 sm:grid-cols-4 sm:gap-3 sm:pt-5">
+              <div className="rounded-2xl border border-slate-950/10 bg-white/35 p-3 backdrop-blur-md sm:p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-800/70">Total Subject Folders</p>
+                <p className="mt-1 text-2xl font-extrabold text-slate-950">{allSubjects.length}</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur-md">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Class Submissions</p>
+              <div className="rounded-2xl border border-slate-950/10 bg-white/35 p-3 backdrop-blur-md sm:p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-800/70">Class Submissions</p>
                 <p className="mt-1 text-2xl font-extrabold text-emerald-400">{totalClassUploads}</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur-md">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Completion Rate</p>
+              <div className="rounded-2xl border border-slate-950/10 bg-white/35 p-3 backdrop-blur-md sm:p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-800/70">Completion Rate</p>
                 <p className="mt-1 text-2xl font-extrabold text-amber-300">{overallCompletionRate}%</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur-md">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Current View</p>
+              <div className="rounded-2xl border border-slate-950/10 bg-white/35 p-3 backdrop-blur-md sm:p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-800/70">Current View</p>
                 <p className="mt-1 text-xs font-extrabold text-purple-300">📁 All Subject Folders</p>
               </div>
             </div>
           </div>
 
           {/* Search Bar for Folders */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-md">
+          <div className="flex min-w-0 flex-col justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
               <span className="text-xl">📁</span>
               <h3 className="text-base font-bold text-[#141414]">Class Folders ({filteredFolders.length})</h3>
@@ -298,7 +298,7 @@ export default function StudentCrPage() {
               <p className="text-base font-semibold">No subject folders found.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {filteredFolders.map((sub) => {
                 const percent = sub.totalStudents > 0 ? Math.round((sub.uploadedCount / sub.totalStudents) * 100) : 0;
                 const pendingCount = Math.max((sub.totalStudents || 0) - (sub.uploadedCount || 0), 0);
@@ -307,21 +307,21 @@ export default function StudentCrPage() {
                   <div
                     key={sub.id}
                     onClick={() => handleOpenFolder(sub.id)}
-                    className="group cursor-pointer rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-purple-400 hover:shadow-xl flex flex-col justify-between"
+                    className="group flex min-w-0 cursor-pointer flex-col justify-between rounded-3xl border border-slate-200 bg-white p-4 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-purple-400 hover:shadow-xl sm:p-6"
                   >
                     {/* Folder Tab Shape Header */}
                     <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2.5">
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2.5">
                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 border border-amber-300 text-2xl text-amber-900 shadow-sm group-hover:scale-105 transition">
                             📂
                           </div>
-                          <span className="font-mono text-xs font-extrabold uppercase tracking-wider text-purple-800 bg-purple-100 px-2.5 py-1 rounded-md border border-purple-200">
+                          <span className="max-w-[110px] truncate rounded-md border border-purple-200 bg-purple-100 px-2.5 py-1 font-mono text-xs font-extrabold uppercase tracking-wider text-purple-800">
                             {sub.code}
                           </span>
                         </div>
 
-                        <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-extrabold text-emerald-800">
+                        <span className="rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-[11px] font-extrabold text-emerald-800">
                           {sub.uploadedCount} Uploaded
                         </span>
                       </div>
@@ -381,10 +381,10 @@ export default function StudentCrPage() {
         </>
       ) : (
         /* PAGE STEP 2: INSIDE OPENED SUBJECT FOLDER VIEW */
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-5 sm:space-y-6">
           {/* Breadcrumb Navigation Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-md">
-            <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-col justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-3 shadow-md sm:flex-row sm:items-center sm:p-4">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={handleBackToFolders}
@@ -393,9 +393,9 @@ export default function StudentCrPage() {
                 <span>← Back to All Folders</span>
               </button>
               <span className="text-slate-300 font-bold">/</span>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="text-xl">📂</span>
-                <span className="font-extrabold text-[#141414] text-base sm:text-lg">
+                <span className="truncate font-extrabold text-[#141414] text-sm sm:text-lg">
                   {currentSubject?.code} - {currentSubject?.name}
                 </span>
               </div>
@@ -412,16 +412,16 @@ export default function StudentCrPage() {
 
           {/* Folder Details Banner */}
           {currentSubject && (
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4 text-white shadow-xl sm:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-bold uppercase tracking-wider text-purple-200 bg-purple-900/60 px-2.5 py-0.5 rounded-md border border-purple-400/40">
                       {currentSubject.code}
                     </span>
                     {currentSubject.facultyName && (
-                      <span className="text-xs text-black  font-medium">
-                        Faculty: <span className="text-white-600  bg-white font-bold">{currentSubject.facultyName}</span>
+                    <span className="text-xs font-medium text-slate-300">
+                      Faculty: <span className="font-bold text-white">{currentSubject.facultyName}</span>
                       </span>
                     )}
                   </div>
@@ -449,7 +449,7 @@ export default function StudentCrPage() {
 
           {/* Folder Submission Stats Cards */}
           {data.stats && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Class Roll Count</p>
                 <p className="mt-2 text-3xl font-extrabold text-[#141414]">{data.stats.total || 0}</p>
@@ -481,10 +481,10 @@ export default function StudentCrPage() {
           )}
 
           {/* Students Submissions Table Container */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-              <div className="flex items-center gap-2.5">
-                <h3 className="text-lg font-bold text-[#141414]">
+          <div className="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:p-6">
+            <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <h3 className="truncate text-base font-bold text-[#141414] sm:text-lg">
                   Student Submissions Roster ({currentSubject?.code})
                 </h3>
                 <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-0.5 text-xs font-bold text-slate-700">
@@ -492,13 +492,13 @@ export default function StudentCrPage() {
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 {/* Status Filter Buttons */}
-                <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <div className="flex w-full rounded-xl border border-slate-200 bg-slate-100 p-1 sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setStatusFilter("ALL")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${statusFilter === "ALL" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:text-slate-900"
+                    className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition sm:px-3 sm:text-xs ${statusFilter === "ALL" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:text-slate-900"
                       }`}
                   >
                     All ({(data.students || []).length})
@@ -506,7 +506,7 @@ export default function StudentCrPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter("UPLOADED")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${statusFilter === "UPLOADED" ? "bg-emerald-600 text-white shadow" : "text-emerald-700 hover:text-emerald-900"
+                    className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition sm:px-3 sm:text-xs ${statusFilter === "UPLOADED" ? "bg-emerald-600 text-white shadow" : "text-emerald-700 hover:text-emerald-900"
                       }`}
                   >
                     Uploaded ({(data.students || []).filter(s => s.hasUploaded).length})
@@ -514,7 +514,7 @@ export default function StudentCrPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter("PENDING")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${statusFilter === "PENDING" ? "bg-rose-600 text-white shadow" : "text-rose-700 hover:text-rose-900"
+                    className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition sm:px-3 sm:text-xs ${statusFilter === "PENDING" ? "bg-rose-600 text-white shadow" : "text-rose-700 hover:text-rose-900"
                       }`}
                   >
                     Pending ({(data.students || []).filter(s => !s.hasUploaded).length})
@@ -526,7 +526,7 @@ export default function StudentCrPage() {
                   placeholder="Search roll no or name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-[#141414] placeholder:text-slate-400 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 w-48 sm:w-60"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-[#141414] placeholder:text-slate-400 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 sm:w-60"
                 />
               </div>
             </div>
@@ -536,8 +536,8 @@ export default function StudentCrPage() {
                 No students match your filter criteria in folder {currentSubject?.code}.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="-mx-1 overflow-x-auto px-1">
+                <table className="min-w-[760px] w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       <th className="px-4 py-3 rounded-l-xl">Student Name & Email</th>

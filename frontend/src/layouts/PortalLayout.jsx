@@ -65,20 +65,20 @@ export default function PortalLayout() {
 
       {/* Main column */}
       <div className={`flex flex-1 flex-col min-h-0 overflow-hidden ${isAdmin ? "admin-content-wrap" : ""} ${isStudent ? "student-content-wrap" : ""}`}>
-        {/* TopBar — floating pill on mobile, normal fixed on desktop */}
+        {/* Desktop top navigation */}
         <div className="shrink-0 hidden lg:block lg:px-6 lg:pt-6 lg:pb-4">
           <TopBar />
         </div>
 
-        {/* Mobile floating TopBar — fixed pill at top like BottomNav at bottom */}
-        <div className="lg:hidden fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.35rem)] max-w-lg">
+        {/* Mobile top navigation stays in the scroll layout so it cannot cover page content. */}
+        <div className="sticky top-0 z-40 w-full min-w-0 shrink-0 px-1 pb-3 lg:hidden">
           <TopBar />
         </div>
 
-        {/* Scrollable page content — extra top padding on mobile to clear floating topbar */}
+        {/* Scrollable page content — reserve space for the fixed bottom navigation. */}
         <div
-          className={`flex-1 min-h-0 touch-pan-y overscroll-contain overflow-y-auto px-4 pt-24 lg:pt-0 lg:px-6 lg:pb-6 ${
-            isAdmin ? "pb-[calc(45vh+1rem)]" : "pb-[calc(7rem+env(safe-area-inset-bottom))]"
+          className={`flex-1 min-h-0 touch-pan-y overscroll-contain overflow-y-auto px-4 pt-2 lg:pt-0 lg:px-6 lg:pb-6 ${
+            isAdmin ? "pb-[calc(45vh+1rem)]" : "pb-[calc(8rem+env(safe-area-inset-bottom))]"
           }`}
         >
           <main className={`content-fade-in ${isAdmin ? "admin-main" : ""} ${isStudent ? "student-main" : ""}`}>

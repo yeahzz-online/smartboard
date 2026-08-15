@@ -285,7 +285,7 @@ body.student-mode.student-dark-mode .student-profile-page .student-profile-accen
 }
 
 .student-content-wrap {
-  padding: 0.4rem 0.35rem 6.5rem 0.35rem;
+  padding: 0.4rem 0.35rem 0 0.35rem;
   border-radius: 1.6rem;
   background: linear-gradient(180deg, rgba(20, 20, 20, 0.96), rgba(20, 20, 20, 0.9));
   border: none;

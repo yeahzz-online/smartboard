@@ -32,14 +32,14 @@ function buildOfficeViewerUrl(fileUrl) {
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
 }
 
-function resolvePresentationEmbedUrl(fileUrl = "", fileType = "", engine = "auto") {
+function resolvePresentationEmbedUrl(fileUrl = "", fileType = "", engine = "auto", fileName = "") {
   if (!fileUrl) return "";
   const rawUrl = String(fileUrl).trim();
 
   const gdriveUrl = extractGoogleDrivePreviewUrl(rawUrl);
   if (gdriveUrl) return gdriveUrl;
 
-  if (isPdfFile(rawUrl, fileType)) {
+  if (isPdfFile(rawUrl, fileType, fileName)) {
     return rawUrl;
   }
 
@@ -53,7 +53,7 @@ function resolvePresentationEmbedUrl(fileUrl = "", fileType = "", engine = "auto
     return rawUrl;
   }
 
-  const isOffice = isOfficePresentation(rawUrl, fileType);
+  const isOffice = isOfficePresentation(rawUrl, fileType, fileName);
   if (isOffice) {
     if (rawUrl.includes("localhost") || rawUrl.includes("127.0.0.1")) {
       return `https://docs.google.com/gview?url=${encodeURIComponent(rawUrl)}&embedded=true`;
@@ -68,31 +68,35 @@ function resolvePresentationEmbedUrl(fileUrl = "", fileType = "", engine = "auto
   return rawUrl;
 }
 
-function isOfficePresentation(url = "", fileType = "") {
+function isOfficePresentation(url = "", fileType = "", fileName = "") {
   const normalizedType = String(fileType || "").toLowerCase();
   if (
     normalizedType.includes("powerpoint") ||
-    normalizedType.includes("presentationml.presentation")
+    normalizedType.includes("presentationml.presentation") ||
+    normalizedType.includes("presentation") ||
+    normalizedType.includes("opendocument.presentation")
   ) {
     return true;
   }
 
-  const raw = String(url || "").trim();
+  const raw = `${String(url || "").trim()} ${String(fileName || "").trim()}`;
   if (!raw) return false;
+
+  const presentationExtensions = /\.(ppt|pptx|pptm|pps|ppsx|ppsm|pot|potx|potm|odp)(?:[?#]|$)/i;
 
   try {
     const pathname = new URL(raw).pathname.toLowerCase();
-    return pathname.endsWith(".ppt") || pathname.endsWith(".pptx");
+    return presentationExtensions.test(pathname);
   } catch (_error) {
     const withoutParams = raw.split("#")[0].split("?")[0].toLowerCase();
-    return withoutParams.endsWith(".ppt") || withoutParams.endsWith(".pptx");
+    return presentationExtensions.test(withoutParams);
   }
 }
 
-function isPdfFile(url = "", fileType = "") {
+function isPdfFile(url = "", fileType = "", fileName = "") {
   const normalizedType = String(fileType || "").toLowerCase();
   if (normalizedType.includes("pdf")) return true;
-  const raw = String(url || "").trim();
+  const raw = `${String(url || "").trim()} ${String(fileName || "").trim()}`;
   if (!raw) return false;
 
   try {
@@ -158,7 +162,12 @@ export default function SmartboardViewPage() {
   const switchViewerEngine = (engine) => {
     if (!previewFile) return;
     const rawUrl = previewFile.fileUrl || "";
-    const newEmbed = resolvePresentationEmbedUrl(rawUrl, previewFile.fileType || previewFileType, engine);
+    const newEmbed = resolvePresentationEmbedUrl(
+      rawUrl,
+      previewFile.fileType || previewFileType,
+      engine,
+      previewFile.fileName
+    );
     setViewerEngine(engine);
     setPreviewFileUrl(newEmbed);
   };
@@ -389,7 +398,12 @@ export default function SmartboardViewPage() {
         throw new Error("Unable to retrieve file URL");
       }
 
-      const launchUrl = resolvePresentationEmbedUrl(fileUrl, presentation.fileType, "auto");
+      const launchUrl = resolvePresentationEmbedUrl(
+        fileUrl,
+        presentation.fileType,
+        "auto",
+        presentation.fileName
+      );
 
       setSelectedPresentationId(String(presentation.id));
       setPreviewFile({ ...presentation, fileUrl });
@@ -428,14 +442,14 @@ export default function SmartboardViewPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-4">
           {status ? (
-            <span className="text-xs font-medium px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200/60 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-violet-500 animate-ping"></span>
-              {status}
+            <span className="flex max-w-[46vw] items-center gap-2 rounded-full border border-violet-200/60 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 sm:max-w-[260px] sm:px-3">
+              <span className="h-2 w-2 shrink-0 animate-ping rounded-full bg-violet-500" />
+              <span className="truncate">{status}</span>
             </span>
           ) : null}
-          <PoweredByYeahzz />
+          <PoweredByYeahzz showText={false} logoClassName="h-7 w-24" className="shrink-0" />
         </div>
       </header>
 
@@ -646,8 +660,8 @@ export default function SmartboardViewPage() {
           {!loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {pagedPresentations.map((ppt) => {
-                const isPdf = isPdfFile(ppt.fileUrl, ppt.fileType);
-                const isPpt = isOfficePresentation(ppt.fileUrl, ppt.fileType);
+                const isPdf = isPdfFile(ppt.fileUrl, ppt.fileType, ppt.fileName);
+                const isPpt = isOfficePresentation(ppt.fileUrl, ppt.fileType, ppt.fileName);
                 const studentDp = ppt.uploadedByPhoto || ppt.avatarUrl || "/auth-assets/people-svgrepo-com.svg";
                 const studentName = ppt.uploadedByName || "Student";
                 const rollNo = ppt.rollNumber || null;
@@ -789,7 +803,7 @@ export default function SmartboardViewPage() {
       {previewFileUrl ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#07080b] text-white animate-in fade-in duration-200">
           {/* Top Fullscreen Glassmorphic Header */}
-          <div className="h-16 shrink-0 px-6 border-b border-white/10 flex items-center justify-between bg-[#0e1017]/90 backdrop-blur-2xl text-white shadow-2xl z-20">
+          <div className="hidden">
             <div className="flex items-center gap-4 min-w-0">
               <div className="relative">
                 <img
@@ -910,7 +924,19 @@ export default function SmartboardViewPage() {
           </div>
 
           {/* Fullscreen Iframe Canvas */}
-          <div className="relative flex-1 w-full h-full bg-[#07080b] p-3 overflow-hidden flex flex-col items-center justify-center">
+          <div className="group relative flex-1 w-full h-full bg-[#07080b] overflow-hidden flex flex-col items-center justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewFileUrl("");
+                setPreviewFileType("");
+                setPreviewFile(null);
+              }}
+              className="absolute right-4 top-4 z-30 rounded-lg bg-black/60 px-3 py-2 text-xs font-bold text-white opacity-0 shadow-lg transition-opacity hover:bg-rose-600 group-hover:opacity-100 focus:opacity-100"
+              aria-label="Close presentation viewer"
+            >
+              ✕ Close
+            </button>
             {/* Ambient Background Glows */}
             <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -918,16 +944,18 @@ export default function SmartboardViewPage() {
             <iframe
               src={previewFileUrl}
               title="full-screen-presentation-preview"
-              className="relative z-10 h-full w-full rounded-2xl border border-white/10 bg-white shadow-2xl transition-all"
+              className="relative z-10 h-full w-full border-0 bg-white shadow-2xl transition-all"
               allowFullScreen
             />
 
             {/* Bottom Floating Glass Action Bar */}
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-[#0d0f17]/90 backdrop-blur-xl border border-white/15 rounded-2xl px-5 py-2.5 shadow-2xl text-xs text-slate-300 flex items-center justify-between gap-6 max-w-2xl w-[90%] sm:w-auto z-20 hover:border-violet-500/40 transition-all">
+            <div className="hidden">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="font-semibold text-slate-200">
-                  {isPdfFile(previewFile?.fileUrl, previewFile?.fileType) ? "PDF Document" : "Presentation Viewer"}
+                  {isPdfFile(previewFile?.fileUrl, previewFile?.fileType, previewFile?.fileName)
+                    ? "PDF Document"
+                    : "Presentation Viewer"}
                 </span>
                 <span className="text-slate-500 hidden sm:inline">|</span>
                 <span className="text-slate-400 hidden sm:inline">

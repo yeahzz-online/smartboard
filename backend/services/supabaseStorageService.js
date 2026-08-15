@@ -27,6 +27,7 @@ function getSupabaseServiceKey() {
 }
 
 function getSupabaseBucket() {
+  if (global.__supabase_bucket_override) return global.__supabase_bucket_override;
   const bucket = readEnv("SUPABASE_STORAGE_BUCKET");
   if (!bucket) {
     throw new Error("SUPABASE_STORAGE_BUCKET is not configured");
@@ -46,6 +47,46 @@ function getSupabaseClient() {
   return global.__supabaseClient;
 }
 
+async function ensureSupabaseBucket(bucket) {
+  const client = getSupabaseClient();
+  const { data: buckets, error: listError } = await client.storage.listBuckets();
+  if (!listError && Array.isArray(buckets)) {
+    const existing = buckets.find((item) => item.name === bucket);
+    if (existing) {
+      global[`__supabase_bucket_ready_${bucket}`] = true;
+      return bucket;
+    }
+
+    // Recover gracefully when production has a valid bucket but the env var
+    // still contains an old/misspelled bucket name.
+    const fallback = buckets.find((item) =>
+      ["app-uploads", "uploads", "presentations"].includes(String(item.name).toLowerCase())
+    ) || buckets[0];
+    if (fallback?.name) {
+      global.__supabase_bucket_override = fallback.name;
+      global[`__supabase_bucket_ready_${fallback.name}`] = true;
+      return fallback.name;
+    }
+  }
+
+  const cacheKey = `__supabase_bucket_ready_${bucket}`;
+  if (global[cacheKey]) return bucket;
+
+  const { error } = await client.storage.createBucket(bucket, { public: false });
+  if (error) {
+    const message = String(error.message || error).toLowerCase();
+    const alreadyExists =
+      error.statusCode === 409 ||
+      error.status === 409 ||
+      message.includes("already exists") ||
+      message.includes("duplicate");
+    if (!alreadyExists) throw error;
+  }
+
+  global[cacheKey] = true;
+  return bucket;
+}
+
 function normalizeStorageKey(key) {
   return String(key || "").replace(/^\/+/, "");
 }
@@ -59,7 +100,8 @@ function encodeStorageKey(key) {
 }
 
 async function createPresignedUploadUrl({ key, contentType, expiresIn = 600 }) {
-  const bucket = getSupabaseBucket();
+  let bucket = getSupabaseBucket();
+  bucket = await ensureSupabaseBucket(bucket);
   const client = getSupabaseClient();
 
   const { data, error } = await client.storage.from(bucket).createSignedUploadUrl(normalizeStorageKey(key), {
@@ -75,7 +117,8 @@ async function createPresignedUploadUrl({ key, contentType, expiresIn = 600 }) {
 }
 
 async function createPresignedDownloadUrl({ key, expiresIn = 3600 }) {
-  const bucket = getSupabaseBucket();
+  let bucket = getSupabaseBucket();
+  bucket = await ensureSupabaseBucket(bucket);
   const client = getSupabaseClient();
 
   const { data, error } = await client.storage.from(bucket).createSignedUrl(normalizeStorageKey(key), expiresIn);
@@ -93,7 +136,8 @@ function buildPublicFileUrl(key) {
 }
 
 async function doesObjectExist({ key }) {
-  const bucket = getSupabaseBucket();
+  let bucket = getSupabaseBucket();
+  bucket = await ensureSupabaseBucket(bucket);
   const client = getSupabaseClient();
   const { error } = await client.storage.from(bucket).download(normalizeStorageKey(key));
   if (error) {
@@ -114,7 +158,8 @@ async function streamToBuffer(body) {
 }
 
 async function uploadObjectStream({ key, body, contentType }) {
-  const bucket = getSupabaseBucket();
+  let bucket = getSupabaseBucket();
+  bucket = await ensureSupabaseBucket(bucket);
   const client = getSupabaseClient();
   const buffer = await streamToBuffer(body);
   const { error } = await client.storage.from(bucket).upload(normalizeStorageKey(key), buffer, {
@@ -129,7 +174,8 @@ async function uploadObjectStream({ key, body, contentType }) {
 }
 
 async function listObjects({ prefix = "", limit = 100, offset = 0 }) {
-  const bucket = getSupabaseBucket();
+  let bucket = getSupabaseBucket();
+  bucket = await ensureSupabaseBucket(bucket);
   const client = getSupabaseClient();
   const { data, error } = await client.storage.from(bucket).list(normalizeStorageKey(prefix), {
     limit,

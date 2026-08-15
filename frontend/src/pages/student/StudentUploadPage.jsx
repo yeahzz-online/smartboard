@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import GlassCard from "../../components/GlassCard";
 import api from "../../services/api";
 
@@ -33,7 +33,30 @@ function getStorageUploadNetworkHint(uploadUrl) {
   return "Storage upload request failed to reach the server. Check backend URL and network connectivity.";
 }
 
+function uploadFileWithProgress(uploadUrl, file, fileType, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", uploadUrl);
+    request.setRequestHeader("Content-Type", fileType);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve();
+        return;
+      }
+      reject(new Error(request.responseText || "Failed to upload file to storage"));
+    };
+    request.onerror = () => reject(new Error(getStorageUploadNetworkHint(uploadUrl)));
+    request.send(file);
+  });
+}
+
 export default function StudentUploadPage() {
+  const fileInputRef = useRef(null);
   const [subjects, setSubjects] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [form, setForm] = useState({
@@ -44,6 +67,8 @@ export default function StudentUploadPage() {
   const [file, setFile] = useState(null);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -85,13 +110,20 @@ export default function StudentUploadPage() {
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
       const droppedFile = files[0];
-      const lowerName = String(droppedFile.name || "").toLowerCase();
-      if (lowerName.endsWith(".ppt") || lowerName.endsWith(".pptx") || lowerName.endsWith(".pdf")) {
-        setFile(droppedFile);
-        setError("");
-      } else {
-        setError("Please drop a valid PowerPoint (.ppt, .pptx) or PDF file");
-      }
+      selectFile(droppedFile);
+    }
+  };
+
+  const selectFile = (selectedFile) => {
+    const lowerName = String(selectedFile?.name || "").toLowerCase();
+    if (lowerName.endsWith(".ppt") || lowerName.endsWith(".pptx") || lowerName.endsWith(".pdf")) {
+      setFile(selectedFile);
+      setError("");
+      setResult(null);
+      setUploadStage("File selected. Ready to upload.");
+    } else {
+      setFile(null);
+      setError("Please choose a valid PowerPoint (.ppt, .pptx) or PDF file");
     }
   };
 
@@ -99,6 +131,8 @@ export default function StudentUploadPage() {
     event.preventDefault();
     setError("");
     setResult(null);
+    setUploadProgress(0);
+    setUploadStage("");
 
     if (!form.subjectId) {
       setError("Please select a subject");
@@ -122,9 +156,11 @@ export default function StudentUploadPage() {
 
     setSubmitting(true);
     try {
+      setUploadStage("Preparing secure upload...");
       const fileType = getContentType(file);
       const title = form.title.trim();
       const description = form.description.trim();
+      const subjectName = subjects.find((item) => item.id === form.subjectId)?.name || "-";
 
       const presignResponse = await api.post("/student/presentations/presign", {
         subjectId: form.subjectId,
@@ -140,25 +176,15 @@ export default function StudentUploadPage() {
         throw new Error("Upload URL could not be generated. Please try again.");
       }
 
-      let uploadResponse;
+      setUploadStage("Uploading file...");
       try {
-        uploadResponse = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": fileType
-          },
-          body: file
-        });
+        await uploadFileWithProgress(uploadUrl, file, fileType, setUploadProgress);
       } catch (_fetchError) {
-        throw new Error(getStorageUploadNetworkHint(uploadUrl));
+        throw new Error(_fetchError?.message || getStorageUploadNetworkHint(uploadUrl));
       }
 
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        const reason = String(errorText || "").trim();
-        throw new Error(reason ? `Storage upload failed: ${reason}` : "Failed to upload file to storage");
-      }
-
+      setUploadProgress(100);
+      setUploadStage("Finalizing upload...");
       const completeResponse = await api.post("/student/presentations/complete", {
         uploadToken,
         title,
@@ -167,8 +193,12 @@ export default function StudentUploadPage() {
 
       setResult({
         ...completeResponse.data,
-        fileName: file.name
+        fileName: file.name,
+        title,
+        subjectName,
+        status: completeResponse.data?.status || "UPLOADED"
       });
+      setUploadStage("Upload completed successfully.");
       setForm({
         title: "",
         description: "",
@@ -177,6 +207,7 @@ export default function StudentUploadPage() {
       setFile(null);
       setFileInputKey((prev) => prev + 1);
     } catch (requestError) {
+      setUploadStage("Upload failed. Please try again.");
       setError(
         requestError?.response?.data?.message ||
           requestError?.message ||
@@ -207,6 +238,15 @@ export default function StudentUploadPage() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition ${
             isDragging
               ? "border-purple-400 bg-purple-500/20 scale-[1.01]"
@@ -219,12 +259,26 @@ export default function StudentUploadPage() {
           <p className="text-sm font-bold text-white">
             {isDragging ? "Drop your presentation file here!" : "Drag & drop PPT, PPTX, or PDF file here"}
           </p>
-          <p className="mt-1 text-xs text-soft">or click below to choose file from your device</p>
           {file && (
             <div className="mt-3 rounded-xl bg-purple-600/40 px-3 py-1.5 text-xs font-semibold text-white border border-purple-400/40">
               Selected: {file.name}
             </div>
           )}
+          <p className="mt-2 text-xs text-black">Click here or drop a file</p>
+          <input
+            ref={fileInputRef}
+            key={fileInputKey}
+            id="student-presentation-file"
+            type="file"
+            className="sr-only"
+            accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => {
+              selectFile(event.target.files?.[0] || null);
+              event.target.value = "";
+            }}
+            disabled={loadingSubjects || subjects.length === 0 || submitting}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -234,14 +288,6 @@ export default function StudentUploadPage() {
             value={form.title}
             onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
             required
-          />
-
-          <textarea
-            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none focus:border-brand-300 md:col-span-2"
-            rows={3}
-            placeholder="Description"
-            value={form.description}
-            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
           />
 
           <select
@@ -259,14 +305,7 @@ export default function StudentUploadPage() {
             ))}
           </select>
 
-          <input
-            key={fileInputKey}
-            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-1 file:text-white focus:border-brand-300"
-            type="file"
-            accept=".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
-            onChange={(event) => setFile(event.target.files?.[0] || null)}
-            disabled={loadingSubjects || subjects.length === 0}
-          />
+
         </div>
 
         <button
@@ -278,10 +317,52 @@ export default function StudentUploadPage() {
         </button>
       </form>
 
+      {submitting ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-sky-400/40 bg-slate-900 p-6 text-white shadow-2xl">
+            <div className="flex items-center gap-3">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-200 border-t-transparent" />
+              <div>
+                <h2 className="font-display text-lg font-bold text-sky-100">Uploading presentation</h2>
+                <p className="mt-1 text-xs text-slate-300">Please keep this window open.</p>
+              </div>
+            </div>
+            <div className="mt-5 flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-300">{uploadStage || "Preparing upload..."}</span>
+              <span className="font-bold text-sky-200">{uploadProgress}%</span>
+            </div>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15">
+              <div className="h-full rounded-full bg-sky-400 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {result ? (
-        <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/20 p-4 text-xs">
-          <h2 className="text-center font-bold text-emerald-200">Upload completed successfully.</h2>
-          <p className="mt-1 text-center text-emerald-100">File: {result.fileName}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-400/40 bg-slate-900 p-6 text-white shadow-2xl">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-xl text-emerald-300">✓</span>
+              <div>
+                <h2 className="font-display text-lg font-bold text-emerald-200">Upload completed</h2>
+                <p className="text-xs text-emerald-100">Your presentation was uploaded successfully.</p>
+              </div>
+            </div>
+            <div className="mt-5 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
+              <div className="flex justify-between gap-4"><span className="text-slate-400">File</span><span className="max-w-[230px] truncate text-right font-semibold">{result.fileName}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-slate-400">Title</span><span className="max-w-[230px] truncate text-right font-semibold">{result.title}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-slate-400">Subject</span><span className="text-right font-semibold">{result.subjectName}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-slate-400">Status</span><span className="font-bold text-emerald-300">{result.status}</span></div>
+              {result.uploadId ? <div className="flex justify-between gap-4"><span className="text-slate-400">Upload ID</span><span className="max-w-[230px] truncate text-right font-mono text-xs">{result.uploadId}</span></div> : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setResult(null)}
+              className="mt-5 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+            >
+              Close
+            </button>
+          </div>
         </div>
       ) : null}
     </GlassCard>

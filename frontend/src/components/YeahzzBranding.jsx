@@ -1,10 +1,19 @@
 export function YeahzzHeaderBadge({ className = "" }) {
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 ${className}`}
+      className={`inline-flex items-center justify-center gap-3 ${className}`}
     >
-      <img src="/auth-assets/yeahzz-mark.svg" alt="Yeahzz logo" className="h-8 w-24 object-contain" />
-      <span className="text-sm font-semibold tracking-wide text-white">Yeahzz</span>
+      <img
+        src="/auth-assets/classcom.svg"
+        alt="Classroom"
+        className="h-8 w-24 object-contain"
+      />
+
+      <img
+        src="/auth-assets/yeahzz-mark.svg"
+        alt="Yeahzz"
+        className="h-8 w-24 object-contain"
+      />
     </div>
   );
 }
@@ -12,25 +21,24 @@ export function YeahzzHeaderBadge({ className = "" }) {
 export function PoweredByYeahzz({
   className = "",
   textClassName = "",
+  logoClassName = "h-8 w-24",
   showText = true,
-  logoClassName = "h-12 w-40"
+  showClassroomLogo = true,
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center gap-1 ${className}`}>
+    <div className={`inline-flex items-center justify-center gap-2 ${className}`}>
       {showText ? (
-        <p className={`text-xs tracking-[0.14em] text-slate-200 ${textClassName}`}>
-          Powered by <span className="font-semibold text-white"></span>
-        </p>
+        <span className={`whitespace-nowrap text-[10px] font-medium tracking-wide text-slate-500 ${textClassName}`}>
+          Classroom collaboration with <span className="font-semibold">Yeahzz</span>
+        </span>
       ) : null}
-      <img
-        src="/auth-assets/yeahzz-mark.svg"
-        alt="Yeahzz logo"
-        className={`${logoClassName} object-contain`}
-        
-      />
-      
+      <div className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1">
+        {showClassroomLogo ? (
+          <img src="/auth-assets/classcom.svg" alt="Classroom logo" className="h-8 w-24 object-contain" />
+        ) : null}
+        {showClassroomLogo ? <span className="text-xs font-bold text-slate-400">+</span> : null}
+        <img src="/auth-assets/yeahzz-mark.svg" alt="Yeahzz logo" className={`${logoClassName} object-contain`} />
+      </div>
     </div>
   );
 }
-
-export default PoweredByYeahzz;

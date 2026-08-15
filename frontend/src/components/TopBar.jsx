@@ -54,7 +54,7 @@ export default function TopBar() {
   return (
     <>
       <header
-        className="bottom-nav-glass flex items-center justify-between gap-2 rounded-full px-4 py-3 sm:px-5 sm:py-3.5 transition-all"
+        className="bottom-nav-glass flex min-h-[60px] min-w-0 items-center justify-between gap-2 rounded-full px-4 py-3 sm:px-5 sm:py-3.5 transition-all"
       >
         {/* Left Side: Logo & Page Title */}
         <div className="flex items-center gap-2.5 min-w-0">

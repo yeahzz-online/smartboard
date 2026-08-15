@@ -1025,7 +1025,10 @@ const getFacultyPresentationDownloadUrl = asyncHandler(async (req, res) => {
   const uploadDoc = await Upload.findById(presentationId).lean().exec();
   if (!uploadDoc) throw new ApiError(404, "Presentation not found");
 
-  const key = uploadDoc.s3Key || uploadDoc.key;
+  // Faculty uploads may have been stored using any of the supported storage
+  // key fields. The student download endpoint already handles all of them;
+  // keep faculty review in sync so it can regenerate a valid signed URL.
+  const key = uploadDoc.s3Key || uploadDoc.key || uploadDoc.fullPath || uploadDoc.path;
   let fileUrl = uploadDoc.fileUrl;
 
   if (key) {

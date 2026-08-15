@@ -221,7 +221,7 @@ export default function FacultyPresentationReviewPage() {
                         type="button"
                         disabled={loadingFileId === item.id}
                         onClick={() => handlePreviewFile(item)}
-                        className="rounded-lg border border-sky-400/60 bg-green px-2.5 py-1 text-xs font-medium text-green/20 transition hover:bg-green disabled:opacity-50"
+                        className="rounded-lg border border-sky-400/60 bg-sky-500/20 px-2.5 py-1 text-xs font-medium text-sky-700 transition hover:bg-sky-500/30 disabled:opacity-50"
                       >
                         Preview
                       </button>
@@ -252,7 +252,7 @@ export default function FacultyPresentationReviewPage() {
                     href={previewModal.fileUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-lg border border-white/20 bg-green px-3 py-1.5 text-xs text-green/20 hover:bg-green transition"
+                    className="rounded-lg border border-sky-400/40 bg-sky-500/20 px-3 py-1.5 text-xs text-sky-700 transition hover:bg-sky-500/30"
                   >
                     Open Original ↗
                   </a>
@@ -260,7 +260,7 @@ export default function FacultyPresentationReviewPage() {
                 <button
                   type="button"
                   onClick={() => setPreviewModal({ isOpen: false, title: "", fileUrl: "", officeViewerUrl: "", fileName: "" })}
-                  className="rounded-lg bg-red-500/20 border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red hover:bg-red-500/30 transition"
+                  className="rounded-lg border border-red-500/40 bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-500/30"
                 >
                   ✕ Close
                 </button>
