@@ -3,6 +3,11 @@ import GlassCard from "../../components/GlassCard";
 import PageLoader from "../../components/PageLoader";
 import api from "../../services/api";
 
+function isPdfFile(fileUrl = "", fileType = "", fileName = "") {
+  if (String(fileType).toLowerCase().includes("pdf")) return true;
+  return /\.pdf(?:[?#]|$)/i.test(`${fileUrl} ${fileName}`);
+}
+
 export default function FacultyPresentationReviewPage() {
   const [subjects, setSubjects] = useState([]);
   const [presentations, setPresentations] = useState([]);
@@ -10,12 +15,6 @@ export default function FacultyPresentationReviewPage() {
     subjectId: "",
     status: "",
     search: ""
-  });
-  const [reviewState, setReviewState] = useState({
-    id: "",
-    status: "APPROVED",
-    feedback: "",
-    title: ""
   });
   const [previewModal, setPreviewModal] = useState({
     isOpen: false,
@@ -27,8 +26,22 @@ export default function FacultyPresentationReviewPage() {
   const [loadingFileId, setLoadingFileId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
+
+  useEffect(() => {
+    if (!previewModal.isOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setPreviewModal({ isOpen: false, title: "", fileUrl: "", officeViewerUrl: "", fileName: "" });
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [previewModal.isOpen]);
 
   const loadSubjects = async () => {
     try {
@@ -66,23 +79,20 @@ export default function FacultyPresentationReviewPage() {
     loadPresentations();
   }, [filters.search, filters.status, filters.subjectId]);
 
-  const openReview = (item, status) => {
-    setError("");
-    setMessage("");
-    setReviewState({
-      id: item.id,
-      status,
-      feedback: item.feedback || "",
-      title: item.title || item.fileName || "Presentation"
+  // Use the same signed storage URL flow as the student/CR views. This keeps
+  // private Supabase/S3 files accessible without exposing their storage key.
+  const getSecureFileUrl = async (item) => {
+    const response = await api.get("/storage/file-url", {
+      params: { uploadId: item.id }
     });
+    return response.data?.url || response.data?.fileUrl || item.fileUrl || "";
   };
 
   const handleOpenFile = async (item) => {
     setLoadingFileId(item.id);
     setError("");
     try {
-      const res = await api.get(`/faculty/presentations/${item.id}/url`);
-      const targetUrl = res.data?.fileUrl || item.fileUrl;
+      const targetUrl = await getSecureFileUrl(item);
       if (targetUrl) {
         window.open(targetUrl, "_blank", "noopener,noreferrer");
       } else {
@@ -103,9 +113,11 @@ export default function FacultyPresentationReviewPage() {
     setLoadingFileId(item.id);
     setError("");
     try {
-      const res = await api.get(`/faculty/presentations/${item.id}/url`);
-      const fileUrl = res.data?.fileUrl || item.fileUrl;
-      const officeViewerUrl = res.data?.officeViewerUrl || item.officeViewerUrl || `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+      const fileUrl = await getSecureFileUrl(item);
+      if (!fileUrl) throw new Error("File URL not available");
+      const officeViewerUrl = isPdfFile(fileUrl, item.fileType, item.fileName)
+        ? fileUrl
+        : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
       setPreviewModal({
         isOpen: true,
         title: item.title || item.fileName || "Presentation Preview",
@@ -114,7 +126,9 @@ export default function FacultyPresentationReviewPage() {
         officeViewerUrl
       });
     } catch (_err) {
-      const officeViewerUrl = item.officeViewerUrl || `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.fileUrl)}`;
+      const officeViewerUrl = isPdfFile(item.fileUrl, item.fileType, item.fileName)
+        ? item.fileUrl
+        : item.officeViewerUrl || `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.fileUrl)}`;
       setPreviewModal({
         isOpen: true,
         title: item.title || item.fileName || "Presentation Preview",
@@ -127,36 +141,14 @@ export default function FacultyPresentationReviewPage() {
     }
   };
 
-  const submitReview = async (event) => {
-    event.preventDefault();
-    if (!reviewState.id) return;
-
-    setSubmittingReview(true);
-    setError("");
-    setMessage("");
-    try {
-      await api.put(`/faculty/presentations/${reviewState.id}/review`, {
-        status: reviewState.status,
-        feedback: reviewState.feedback
-      });
-      setMessage("Presentation review updated.");
-      setReviewState({ id: "", status: "APPROVED", feedback: "", title: "" });
-      await loadPresentations();
-    } catch (requestError) {
-      setError(requestError?.response?.data?.message || "Failed to submit review");
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
   if (loading) return <PageLoader label="Loading presentation review..." />;
 
   return (
     <section className="space-y-5">
       <GlassCard>
-        <h3 className="font-display text-lg text-white">Presentation Review</h3>
+        <h3 className="font-display text-lg text-white">Presentation Viewer</h3>
         <p className="mt-1 text-sm text-soft">
-          Approve or reject student submissions with feedback comments.
+          View student presentation files securely.
         </p>
         <div className="mt-4 grid gap-3 lg:grid-cols-4">
           <select
@@ -190,41 +182,6 @@ export default function FacultyPresentationReviewPage() {
           />
         </div>
       </GlassCard>
-
-      {reviewState.id ? (
-        <GlassCard>
-          <form className="space-y-3" onSubmit={submitReview}>
-            <p className="text-sm font-semibold text-white">
-              Review: {reviewState.title} ({reviewState.status})
-            </p>
-            <textarea
-              className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-brand-300"
-              rows={4}
-              placeholder="Feedback comments"
-              value={reviewState.feedback}
-              onChange={(event) =>
-                setReviewState((prev) => ({ ...prev, feedback: event.target.value }))
-              }
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={submittingReview}
-                className="rounded-xl bg-gradient-to-r from-violetBrand-500 to-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70"
-              >
-                {submittingReview ? "Submitting..." : `Confirm ${reviewState.status}`}
-              </button>
-              <button
-                type="button"
-                onClick={() => setReviewState({ id: "", status: "APPROVED", feedback: "", title: "" })}
-                className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white transition hover:bg-white/20"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </GlassCard>
-      ) : null}
 
       <GlassCard>
         <div className="overflow-x-auto">
@@ -264,31 +221,9 @@ export default function FacultyPresentationReviewPage() {
                         type="button"
                         disabled={loadingFileId === item.id}
                         onClick={() => handlePreviewFile(item)}
-                        className="rounded-lg border border-sky-400/60 bg-sky-400/20 px-2.5 py-1 text-xs font-medium text-sky-200 transition hover:bg-sky-400/30 disabled:opacity-50"
+                        className="rounded-lg border border-sky-400/60 bg-green px-2.5 py-1 text-xs font-medium text-green/20 transition hover:bg-green disabled:opacity-50"
                       >
                         Preview
-                      </button>
-                      <button
-                        type="button"
-                        disabled={loadingFileId === item.id}
-                        onClick={() => handleOpenFile(item)}
-                        className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/20 disabled:opacity-50"
-                      >
-                        {loadingFileId === item.id ? "Opening..." : "Open"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openReview(item, "APPROVED")}
-                        className="rounded-lg border border-emerald-400/60 bg-emerald-400/20 px-2 py-1 text-xs text-emerald-100 hover:bg-emerald-400/30"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openReview(item, "REJECTED")}
-                        className="rounded-lg border border-red-400/60 bg-red-400/20 px-2 py-1 text-xs text-red-100 hover:bg-red-400/30"
-                      >
-                        Reject
                       </button>
                     </div>
                   </td>
@@ -302,9 +237,9 @@ export default function FacultyPresentationReviewPage() {
 
       {/* Presentation Fullscreen Preview Modal */}
       {previewModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 md:p-6">
-          <div className="flex flex-col h-[90vh] w-full max-w-6xl rounded-2xl border border-white/20 bg-slate-900 shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5 bg-slate-950/70">
+        <div className="fixed inset-0 z-[100] flex h-[102dvh] w-screen items-center border-black justify-center bg-white/20">
+          <div className="flex h-[100dvh] w-full flex-col overflow-hidden rounded-none border-0 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5 bg-white">
               <div className="flex items-center gap-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <h4 className="font-semibold text-sm md:text-base text-white truncate max-w-md">
@@ -317,7 +252,7 @@ export default function FacultyPresentationReviewPage() {
                     href={previewModal.fileUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/20 transition"
+                    className="rounded-lg border border-white/20 bg-green px-3 py-1.5 text-xs text-green/20 hover:bg-green transition"
                   >
                     Open Original ↗
                   </a>
@@ -325,7 +260,7 @@ export default function FacultyPresentationReviewPage() {
                 <button
                   type="button"
                   onClick={() => setPreviewModal({ isOpen: false, title: "", fileUrl: "", officeViewerUrl: "", fileName: "" })}
-                  className="rounded-lg bg-red-500/20 border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/30 transition"
+                  className="rounded-lg bg-red-500/20 border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red hover:bg-red-500/30 transition"
                 >
                   ✕ Close
                 </button>
@@ -343,7 +278,6 @@ export default function FacultyPresentationReviewPage() {
         </div>
       )}
 
-      {message ? <p className="text-emerald-300">{message}</p> : null}
       {error ? <p className="text-red-300">{error}</p> : null}
     </section>
   );

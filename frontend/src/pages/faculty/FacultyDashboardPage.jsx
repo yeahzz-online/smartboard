@@ -2,17 +2,19 @@
 import GlassCard from "../../components/GlassCard";
 import PageLoader from "../../components/PageLoader";
 import api from "../../services/api";
+import useAuth from "../../hooks/useAuth";
 
 function Metric({ label, value }) {
   return (
-    <GlassCard className="rounded-2xl p-4">
+    <GlassCard className="rounded-2xl p-4 sm:p-5">
       <p className="text-xs uppercase tracking-[0.18em] text-soft">{label}</p>
-      <h3 className="mt-2 font-display text-3xl text-white">{value}</h3>
+      <h3 className="mt-2 font-display text-2xl text-white sm:text-3xl">{value}</h3>
     </GlassCard>
   );
 }
 
 export default function FacultyDashboardPage() {
+  const { user } = useAuth();
   const [state, setState] = useState({
     loading: true,
     data: null,
@@ -42,10 +44,19 @@ export default function FacultyDashboardPage() {
   const subjects = state.data?.subjects || [];
   const recentUploads = state.data?.recentUploads || [];
   const notifications = state.data?.notifications || [];
+  const facultyName = state.data?.faculty?.name || user?.name || "Faculty";
 
   return (
     <section className="space-y-5">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-soft">Faculty portal</p>
+          <h1 className="mt-1 font-display text-2xl font-bold text-white sm:text-3xl">Welcome, {facultyName}</h1>
+          <p className="mt-1 text-sm text-soft">Keep track of your classes, subjects, and presentation reviews.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
         <Metric label="Classes" value={metrics.assignedClasses || 0} />
         <Metric label="Subjects" value={metrics.subjectsCount || 0} />
         <Metric label="Students" value={metrics.studentsCount || 0} />
@@ -68,12 +79,12 @@ export default function FacultyDashboardPage() {
             </thead>
             <tbody>
               {subjects.map((item) => (
-                <tr key={item.id} className="border-t border-white/10">
-                  <td className="px-3 py-3">{item.name}</td>
+                <tr key={item.id || `${item.code}-${item.name}`} className="border-t border-white/10">
+                  <td className="px-3 py-3">{item.name || "Unnamed subject"}</td>
                   <td className="px-3 py-3">{item.code || "-"}</td>
-                  <td className="px-3 py-3">{item.year}</td>
-                  <td className="px-3 py-3">{item.section}</td>
-                  <td className="px-3 py-3">{item.department}</td>
+                  <td className="px-3 py-3">{item.year || "-"}</td>
+                  <td className="px-3 py-3">{item.section || "-"}</td>
+                  <td className="px-3 py-3">{item.department || "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -89,8 +100,8 @@ export default function FacultyDashboardPage() {
             <p className="mt-3 text-soft">No recent uploads available.</p>
           ) : (
             <div className="mt-3 space-y-2">
-              {recentUploads.map((item) => (
-                <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+              {recentUploads.map((item, index) => (
+                <div key={item.id || `${item.fileName}-${index}`} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
                   <p className="font-semibold text-white">{item.title || item.fileName || item.subjectName}</p>
                   <p className="text-xs text-soft">
                     {item.subjectCode || "-"} | {item.uploadedByName || "-"} ({item.rollNumber || "-"}) | {item.status}
@@ -107,8 +118,8 @@ export default function FacultyDashboardPage() {
             <p className="mt-3 text-soft">No notifications available.</p>
           ) : (
             <div className="mt-3 space-y-2">
-              {notifications.map((item) => (
-                <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+              {notifications.map((item, index) => (
+                <div key={item.id || `${item.title}-${index}`} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
                   <p className="font-semibold text-white">{item.title}</p>
                   <p className="mt-1 text-xs text-soft">{item.message}</p>
                   <p className="mt-1 text-[11px] text-soft">

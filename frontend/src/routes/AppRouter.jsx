@@ -85,9 +85,11 @@ export default function AppRouter() {
 
         <Route element={<ProtectedRoute allowedRoles={["FACULTY"]} />}>
           <Route path="/faculty/dashboard" element={<FacultyDashboardPage />} />
+          <Route path="/faculty" element={<Navigate to="/faculty/dashboard" replace />} />
           <Route path="/faculty/classes" element={<FacultyClassesPage />} />
           <Route path="/faculty/subjects" element={<FacultySubjectsPage />} />
           <Route path="/faculty/review" element={<FacultyPresentationReviewPage />} />
+          <Route path="/faculty/presentations/review" element={<FacultyPresentationReviewPage />} />
           <Route path="/faculty/materials" element={<FacultyMaterialsPage />} />
           <Route path="/faculty/students" element={<FacultyStudentsPage />} />
           <Route path="/faculty/notifications" element={<FacultyNotificationsPage />} />

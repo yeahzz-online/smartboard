@@ -4,6 +4,11 @@ import useAuth from "../../hooks/useAuth";
 import api from "../../services/api";
 import { resolveAssetUrl } from "../../utils/urlUtils";
 
+function isPdfFile(fileUrl = "", fileType = "", fileName = "") {
+  if (String(fileType).toLowerCase().includes("pdf")) return true;
+  return /\.pdf(?:[?#]|$)/i.test(`${fileUrl} ${fileName}`);
+}
+
 export default function StudentCrPage() {
   const { user } = useAuth();
   const [data, setData] = useState({
@@ -33,6 +38,22 @@ export default function StudentCrPage() {
     officeViewerUrl: ""
   });
   const [openingUploadId, setOpeningUploadId] = useState(null);
+
+  useEffect(() => {
+    if (!previewModal.isOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setPreviewModal({ isOpen: false, title: "", fileUrl: "", officeViewerUrl: "" });
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [previewModal.isOpen]);
 
   const loadClassStatus = async (subjectId = selectedSubjectId) => {
     setLoading(true);
@@ -126,7 +147,9 @@ export default function StudentCrPage() {
     setError("");
     try {
       const url = (await fetchSignedFileUrl(up.id)) || up.fileUrl;
-      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+      const officeViewerUrl = isPdfFile(url, up.fileType, up.fileName)
+        ? url
+        : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
       setPreviewModal({
         isOpen: true,
         title: up.title || "Presentation Preview",
@@ -134,7 +157,9 @@ export default function StudentCrPage() {
         officeViewerUrl
       });
     } catch (_err) {
-      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(up.fileUrl)}`;
+      const officeViewerUrl = isPdfFile(up.fileUrl, up.fileType, up.fileName)
+        ? up.fileUrl
+        : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(up.fileUrl)}`;
       setPreviewModal({
         isOpen: true,
         title: up.title || "Presentation Preview",
@@ -144,6 +169,11 @@ export default function StudentCrPage() {
     } finally {
       setOpeningUploadId(null);
     }
+  };
+
+  const handleStudentPreview = (student) => {
+    const latestUpload = student?.uploads?.[0];
+    if (latestUpload) handlePreviewFile(latestUpload);
   };
 
   if (loading && !data.subject && (data.subjects || []).length === 0) {
@@ -521,8 +551,10 @@ export default function StudentCrPage() {
                     {filteredStudents.map((st) => (
                       <tr
                         key={st.id}
-                        className={`transition hover:bg-slate-50 ${st.isMe ? "bg-purple-50/50 font-medium" : ""
+                        onClick={() => handleStudentPreview(st)}
+                        className={`transition ${st.hasUploaded ? "cursor-pointer hover:bg-emerald-50/60" : "hover:bg-slate-50"} ${st.isMe ? "bg-purple-50/50 font-medium" : ""
                           }`}
+                        title={st.hasUploaded ? "Click to view the latest presentation" : "No presentation uploaded"}
                       >
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-3">
@@ -544,7 +576,7 @@ export default function StudentCrPage() {
                             )}
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-[#141414] text-sm">{st.name}</span>
+                                <span className={`font-bold text-sm ${st.hasUploaded ? "text-emerald-800" : "text-[#141414]"}`}>{st.name}</span>
                                 {st.isMe && (
                                   <span className="rounded-md bg-purple-100 border border-purple-300 px-1.5 py-0.2 text-[10px] font-bold text-purple-800">
                                     You
@@ -574,7 +606,7 @@ export default function StudentCrPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 border border-rose-300 px-3 py-1 text-xs font-bold text-rose-800">
                               <span className="h-2 w-2 rounded-full bg-rose-600" />
-                              Pending
+                              Not Uploaded
                             </span>
                           )}
                         </td>
@@ -682,8 +714,8 @@ export default function StudentCrPage() {
 
       {/* Presentation Fullscreen Preview Modal */}
       {previewModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 md:p-6">
-          <div className="flex flex-col h-[90vh] w-full max-w-6xl rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex h-[100dvh] w-screen items-center justify-center bg-black/95">
+          <div className="flex h-[100dvh] w-full flex-col overflow-hidden rounded-none border-0 bg-slate-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-950">
               <div className="flex items-center gap-3">
                 <span className="h-3 w-3 rounded-full bg-emerald-400 animate-pulse" />
