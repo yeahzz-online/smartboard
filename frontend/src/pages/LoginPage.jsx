@@ -78,6 +78,7 @@ export default function LoginPage({ portalRole = null }) {
         ? "ADMIN"
       : null;
   const activePortalRole = portalRole || routeRole || "STUDENT";
+  const isRootLogin = !portalRole && !routeRole;
   const supportsOtpLogin = activePortalRole === "FACULTY" || activePortalRole === "STUDENT";
   const portalCopy = getPortalCopy(activePortalRole);
   const helperLinkTo =
@@ -218,6 +219,18 @@ export default function LoginPage({ portalRole = null }) {
           .
         </p>
       </form>
+      {isRootLogin ? (
+        <div className="mt-5 flex items-center justify-center gap-3 text-xs text-slate-500">
+          <span>Other portals:</span>
+          <Link className="font-semibold text-slate-700 hover:text-black" to="/faculty/login">
+            Faculty Login
+          </Link>
+          <span aria-hidden="true">|</span>
+          <Link className="font-semibold text-slate-700 hover:text-black" to="/admin/login">
+            Admin Login
+          </Link>
+        </div>
+      ) : null}
       <div className="flex justify-center pt-6">
         <PoweredByYeahzz />
       </div>
