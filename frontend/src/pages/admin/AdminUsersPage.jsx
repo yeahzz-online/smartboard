@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import GlassCard from "../../components/GlassCard";
 import PortalIcon from "../../components/PortalIcon";
 import api from "../../services/api";
+import { resolveAssetUrl } from "../../utils/urlUtils";
 
 const ROLE_OPTIONS = ["ALL", "STUDENT", "FACULTY", "ADMIN", "SMARTBOARD"];
 const YEAR_OPTIONS = ["1", "2", "3", "4"];
@@ -71,7 +72,8 @@ const initialCreateForm = {
   mobile: "",
   classId: "",
   facultyClassIds: "",
-  isVerified: true
+  isVerified: true,
+  isActive: true
 };
 
 const initialEditForm = {
@@ -87,7 +89,8 @@ const initialEditForm = {
   mobile: "",
   classId: "",
   facultyClassIds: "",
-  isVerified: true
+  isVerified: true,
+  isActive: true
 };
 
 export default function AdminUsersPage() {
@@ -114,6 +117,9 @@ export default function AdminUsersPage() {
   const [confirmCreateOpen, setConfirmCreateOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [bulkClassId, setBulkClassId] = useState("");
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const loadUsers = async (roleFilter = selectedRole) => {
     setLoading(true);
@@ -125,6 +131,7 @@ export default function AdminUsersPage() {
         api.get("/admin/classes")
       ]);
       setUsers(usersResponse.data.users || []);
+      setSelectedUserIds([]);
       setClasses(classesResponse.data.classes || []);
     } catch (requestError) {
       setError(requestError?.response?.data?.message || "Failed to load users");
@@ -141,6 +148,33 @@ export default function AdminUsersPage() {
     setSelectedRole(getRoleFilterFromSearch(location.search));
   }, [location.search]);
 
+  useEffect(() => {
+    if (!isEditModalOpen && !isCreateModalOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !editing) {
+        setIsEditModalOpen(false);
+        setIsCreateModalOpen(false);
+        setEditForm(initialEditForm);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [editing, isCreateModalOpen, isEditModalOpen]);
+
+  const closeEditModal = () => {
+    if (editing) return;
+    setIsEditModalOpen(false);
+    setEditForm(initialEditForm);
+  };
+
   const parseFacultyClassIds = (value) =>
     String(value || "")
       .split(",")
@@ -153,7 +187,8 @@ export default function AdminUsersPage() {
       email: form.email.trim(),
       role: form.role,
       isVerified: Boolean(form.isVerified),
-      classId: form.classId || null
+      classId: form.classId || null,
+      isActive: Boolean(form.isActive)
     };
 
     if (includePassword && form.password) {
@@ -331,7 +366,8 @@ export default function AdminUsersPage() {
         user.role === "FACULTY" && Array.isArray(user.classIds)
           ? user.classIds.join(",")
           : "",
-      isVerified: Boolean(user.isVerified)
+      isVerified: Boolean(user.isVerified),
+      isActive: user.isActive !== false
     });
     setIsEditModalOpen(true);
   };
@@ -371,6 +407,46 @@ export default function AdminUsersPage() {
       loadUsers();
     } catch (requestError) {
       setError(requestError?.response?.data?.message || "Failed to delete user");
+    }
+  };
+
+  const toggleUserSelection = (userId) => {
+    setSelectedUserIds((current) =>
+      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]
+    );
+  };
+
+  const bulkUpdateUsers = async (updates, successMessage) => {
+    if (!selectedUserIds.length) return;
+    setBulkProcessing(true);
+    setError("");
+    setMessage("");
+    try {
+      await Promise.all(selectedUserIds.map((userId) => api.put(`/admin/users/${userId}`, updates)));
+      setMessage(`${successMessage} (${selectedUserIds.length} users)`);
+      setSelectedUserIds([]);
+      await loadUsers();
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || "Bulk user update failed");
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const bulkDeleteUsers = async () => {
+    if (!selectedUserIds.length || !window.confirm(`Delete ${selectedUserIds.length} selected users?`)) return;
+    setBulkProcessing(true);
+    setError("");
+    setMessage("");
+    try {
+      await Promise.all(selectedUserIds.map((userId) => api.delete(`/admin/users/${userId}`)));
+      setMessage(`${selectedUserIds.length} users deleted successfully`);
+      setSelectedUserIds([]);
+      await loadUsers();
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || "Bulk delete failed");
+    } finally {
+      setBulkProcessing(false);
     }
   };
 
@@ -761,13 +837,25 @@ export default function AdminUsersPage() {
                 {/* Role Specific: Faculty */}
                 {createForm.role === "FACULTY" && (
                   <div className="md:col-span-2">
-                    <label className="block text-xs text-soft mb-1">Faculty Assigned Class IDs (Comma-separated)</label>
-                    <input
-                      className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-400 outline-none focus:border-brand-400"
-                      placeholder="e.g. 64abc123, 64abc456"
-                      value={createForm.facultyClassIds}
-                      onChange={(e) => setCreateForm((prev) => ({ ...prev, facultyClassIds: e.target.value }))}
-                    />
+                    <label className="block text-xs text-soft mb-1">Assigned Classes (Select multiple)</label>
+                    <select
+                      multiple
+                      className="h-32 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                      value={parseFacultyClassIds(createForm.facultyClassIds)}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          facultyClassIds: Array.from(e.target.selectedOptions).map((option) => option.value).join(",")
+                        }))
+                      }
+                    >
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                          {c.name} ({c.departmentCode}) Y{c.year}-{c.section}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-soft">Hold Ctrl/Cmd to select more than one class.</p>
                   </div>
                 )}
 
@@ -800,6 +888,18 @@ export default function AdminUsersPage() {
                     Mark account as verified immediately
                   </label>
                 </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="create-active-check"
+                    checked={createForm.isActive}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    className="h-4 w-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-400 cursor-pointer"
+                  />
+                  <label htmlFor="create-active-check" className="text-sm text-slate-200 cursor-pointer">
+                    Active Account (allow login)
+                  </label>
+                </div>
               </div>
 
               {/* Footer Actions */}
@@ -829,11 +929,23 @@ export default function AdminUsersPage() {
 
       {/* EDIT USER MODAL POPUP */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-2xl border border-white/20 bg-[#141416] p-6 shadow-2xl space-y-5 text-white my-8">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeEditModal();
+          }}
+        >
+          <div
+            className="relative my-0 flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#141416] text-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-user-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 p-6 pb-4">
               <div>
-                <h3 className="font-display text-xl font-bold text-white flex items-center gap-2">
+                <h3 id="edit-user-modal-title" className="font-display text-xl font-bold text-white flex items-center gap-2">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-sm">
                     ✎
                   </span>
@@ -845,17 +957,16 @@ export default function AdminUsersPage() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditForm(initialEditForm);
-                }}
+                onClick={closeEditModal}
+                aria-label="Close edit user dialog"
+                disabled={editing}
                 className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 hover:bg-white/10 hover:text-white transition"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleUpdate} className="space-y-4">
+            <form onSubmit={handleUpdate} className="space-y-4 overflow-y-auto p-6">
               {/* Role Selection Tabs */}
               <div>
                 <label className="block text-xs font-semibold text-soft mb-2 uppercase tracking-wider">
@@ -1001,13 +1112,25 @@ export default function AdminUsersPage() {
                 {/* Role Specific: Faculty */}
                 {editForm.role === "FACULTY" && (
                   <div className="md:col-span-2">
-                    <label className="block text-xs text-soft mb-1">Faculty Class IDs (Comma-separated)</label>
-                    <input
-                      className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
-                      placeholder="e.g. 64abc123, 64abc456"
-                      value={editForm.facultyClassIds}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, facultyClassIds: e.target.value }))}
-                    />
+                    <label className="block text-xs text-soft mb-1">Assigned Classes (Select multiple)</label>
+                    <select
+                      multiple
+                      className="h-32 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-400"
+                      value={parseFacultyClassIds(editForm.facultyClassIds)}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          facultyClassIds: Array.from(e.target.selectedOptions).map((option) => option.value).join(",")
+                        }))
+                      }
+                    >
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                          {c.name} ({c.departmentCode}) Y{c.year}-{c.section}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-soft">Hold Ctrl/Cmd to select more than one class.</p>
                   </div>
                 )}
 
@@ -1040,16 +1163,26 @@ export default function AdminUsersPage() {
                     Verified Account
                   </label>
                 </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="edit-active-check"
+                    checked={editForm.isActive}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    className="h-4 w-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-400 cursor-pointer"
+                  />
+                  <label htmlFor="edit-active-check" className="text-sm text-slate-200 cursor-pointer">
+                    Active Account (allow login)
+                  </label>
+                </div>
               </div>
 
               {/* Footer Actions */}
               <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsEditModalOpen(false);
-                    setEditForm(initialEditForm);
-                  }}
+                  onClick={closeEditModal}
+                  disabled={editing}
                   className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition"
                 >
                   Cancel
@@ -1134,14 +1267,91 @@ export default function AdminUsersPage() {
           if (filteredUsers.length === 0) return null;
 
           return (
-            <div className="mt-4 overflow-x-auto">
+            <>
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
+                <span className="mr-1 text-xs font-semibold uppercase tracking-[0.12em] text-soft">
+                  {selectedUserIds.length} selected
+                </span>
+                <select
+                  className="rounded-lg border border-white/15 bg-slate-900 px-3 py-2 text-xs text-white outline-none focus:border-brand-300"
+                  value={bulkClassId}
+                  onChange={(event) => setBulkClassId(event.target.value)}
+                  disabled={bulkProcessing || !selectedUserIds.length}
+                >
+                  <option value="">Assign class...</option>
+                  <option value="">Remove class assignment</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.departmentCode}) Y{c.year}-{c.section}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={bulkProcessing || !selectedUserIds.length || !bulkClassId}
+                  onClick={() => bulkUpdateUsers({ classId: bulkClassId }, "Class assigned to selected users")}
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Assign Class
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkProcessing || !selectedUserIds.length}
+                  onClick={() => bulkUpdateUsers({ classId: null }, "Class assignment removed")}
+                  className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Remove Class
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkProcessing || !selectedUserIds.length}
+                  onClick={() => bulkUpdateUsers({ isActive: true }, "Selected users activated")}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Activate
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkProcessing || !selectedUserIds.length}
+                  onClick={() => bulkUpdateUsers({ isActive: false }, "Selected users deactivated")}
+                  className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Deactivate
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkProcessing || !selectedUserIds.length}
+                  onClick={bulkDeleteUsers}
+                  className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Delete Selected
+                </button>
+              </div>
+
+              <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="text-soft">
                   <tr>
+                    <th className="w-10 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all visible users"
+                        checked={filteredUsers.length > 0 && filteredUsers.every((user) => selectedUserIds.includes(user.id))}
+                        onChange={(event) => {
+                          const visibleIds = filteredUsers.map((user) => user.id);
+                          setSelectedUserIds((current) =>
+                            event.target.checked
+                              ? Array.from(new Set([...current, ...visibleIds]))
+                              : current.filter((id) => !visibleIds.includes(id))
+                          );
+                        }}
+                      />
+                    </th>
                     <th className="px-3 py-2">User</th>
                     <th className="px-3 py-2">Email</th>
                     <th className="px-3 py-2">Role</th>
                     <th className="px-3 py-2">Verified</th>
+                    <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Branch</th>
                     <th className="px-3 py-2">Year</th>
                     <th className="px-3 py-2">Section</th>
@@ -1152,10 +1362,18 @@ export default function AdminUsersPage() {
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="border-t border-white/10">
                       <td className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${user.name || user.email}`}
+                          checked={selectedUserIds.includes(user.id)}
+                          onChange={() => toggleUserSelection(user.id)}
+                        />
+                      </td>
+                      <td className="px-3 py-3">
                         <div className="flex items-center gap-3">
                           {user.profilePhoto ? (
                             <img
-                              src={user.profilePhoto}
+                              src={resolveAssetUrl(user.profilePhoto)}
                               alt={`${user.name || "User"} avatar`}
                               className="h-9 w-9 rounded-full object-cover ring-2 ring-white/10"
                             />
@@ -1189,6 +1407,11 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="px-3 py-3">{user.isVerified ? "Yes" : "No"}</td>
+                      <td className="px-3 py-3">
+                        <span className={user.isActive === false ? "text-amber-300" : "text-emerald-300"}>
+                          {user.isActive === false ? "Inactive" : "Active"}
+                        </span>
+                      </td>
                       <td className="px-3 py-3">{user.branch || "-"}</td>
                       <td className="px-3 py-3">{user.year || "-"}</td>
                       <td className="px-3 py-3">{user.section || "-"}</td>
@@ -1232,7 +1455,8 @@ export default function AdminUsersPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           );
         })()}
       </GlassCard>

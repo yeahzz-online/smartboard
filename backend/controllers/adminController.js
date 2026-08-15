@@ -299,6 +299,7 @@ function mapUserForResponse(userDoc) {
     mobile: userDoc.mobile || null,
     classId: userDoc.classId ? String(userDoc.classId) : null,
     isVerified: Boolean(userDoc.isVerified),
+    isActive: userDoc.isActive !== false,
     isCr: Boolean(userDoc.isCr),
     createdAt: userDoc.createdAt
   };
@@ -1265,6 +1266,7 @@ const updateUserByAdmin = asyncHandler(async (req, res) => {
   if (req.body.role !== undefined) patch.role = roleFromBody;
   if (req.body.classId !== undefined) patch.classId = ensureObjectId(req.body.classId, "classId");
   if (req.body.isVerified !== undefined) patch.isVerified = Boolean(req.body.isVerified);
+  if (req.body.isActive !== undefined) patch.isActive = Boolean(req.body.isActive);
   if (req.body.profilePhoto !== undefined) {
     patch.profilePhoto = String(req.body.profilePhoto || "").trim() || null;
   }

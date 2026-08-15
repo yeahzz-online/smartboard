@@ -293,7 +293,7 @@ npm run dev
 
 ## Implemented Core Features
 - Registration with role-aware email validation
-  - Student regex: `^(2[1-5])h51[a-z]\d{4}@cmrcet\.ac\.in$`
+  - Student regex: `^(2[1-9])h5[1-5][a-z]\d{4}@cmrcet\.ac\.in$`
   - Faculty regex: `^(?!\d+@)[a-z][a-z0-9._-]*@cmrcet\.ac\.in$`
 - OTP email verification with 5-minute expiry
 - Configurable OTP resend cooldown and secure OTP generation (`crypto.randomInt`)
@@ -314,7 +314,6 @@ Use:
 
 ## Deployment Notes
 Set the backend environment variables in `backend/.env` and run the backend with Supabase storage enabled.
-#   c l a s s  
- #   b a c k i  
- #   s m a r t b o a r d - b a c k  
+#   c l a s s 
+ 
  

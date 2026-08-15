@@ -15,6 +15,18 @@ export function resolveAssetUrl(url) {
       const hostname = window.location.hostname || "localhost";
       return `http://${hostname}:5000${clean}`;
     }
+
+    // Profile photos are stored by the API and returned as relative paths.
+    // When the frontend and API are deployed on different domains, a plain
+    // `/files/...` URL incorrectly points at the frontend domain.
+    const configuredApi = String(import.meta.env.VITE_API_BASE_URL || "").trim();
+    if (configuredApi && /^https?:\/\//i.test(configuredApi)) {
+      try {
+        return `${new URL(configuredApi).origin}${clean}`;
+      } catch (_error) {
+        // Keep the relative path if the configured URL is malformed.
+      }
+    }
     return clean;
   }
 

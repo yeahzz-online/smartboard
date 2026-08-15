@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import PortalIcon, { getNavIconName } from "./PortalIcon";
 import useAuth from "../hooks/useAuth";
+import { resolveAssetUrl } from "../utils/urlUtils";
 
 function isActivePath(currentPath, href) {
   return currentPath === href || currentPath.startsWith(`${href}/`);
@@ -22,7 +23,7 @@ export default function SidebarNav({ items, role }) {
       .join("") || "ST";
   const hasProfilePhoto = Boolean(user?.profilePhoto && String(user.profilePhoto).trim());
   const avatarSrc =
-    (user?.profilePhoto && String(user.profilePhoto).trim()) || "/auth-assets/profile-placeholder.svg";
+    resolveAssetUrl(user?.profilePhoto) || "/auth-assets/profile-placeholder.svg";
   const onAvatarError = (event) => {
     if (event.currentTarget.src.includes("/auth-assets/profile-placeholder.svg")) return;
     event.currentTarget.src = "/auth-assets/profile-placeholder.svg";

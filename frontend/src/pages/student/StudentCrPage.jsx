@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import PageLoader from "../../components/PageLoader";
 import useAuth from "../../hooks/useAuth";
 import api from "../../services/api";
+import { resolveAssetUrl } from "../../utils/urlUtils";
 
 export default function StudentCrPage() {
   const { user } = useAuth();
@@ -527,9 +528,14 @@ export default function StudentCrPage() {
                           <div className="flex items-center gap-3">
                             {st.profilePhoto ? (
                               <img
-                                src={st.profilePhoto}
+                                src={resolveAssetUrl(st.profilePhoto)}
                                 alt={st.name}
                                 className="h-9 w-9 rounded-full object-cover ring-2 ring-slate-200 shrink-0"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.onerror = null;
+                                  event.currentTarget.src = "/auth-assets/profile-placeholder.svg";
+                                }}
                               />
                             ) : (
                               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white shadow-sm">

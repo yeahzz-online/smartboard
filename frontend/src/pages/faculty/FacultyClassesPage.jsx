@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import GlassCard from "../../components/GlassCard";
 import api from "../../services/api";
 import useAuth from "../../hooks/useAuth";
+import { resolveAssetUrl } from "../../utils/urlUtils";
 
 export default function FacultyClassesPage() {
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ export default function FacultyClassesPage() {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() || "")
       .join("") || "FA";
-  const avatarSrc = String(user?.profilePhoto || "").trim();
+  const avatarSrc = resolveAssetUrl(user?.profilePhoto);
 
   return (
     <section className="space-y-5">

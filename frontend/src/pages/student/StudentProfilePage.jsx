@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PoweredByYeahzz } from "../../components/YeahzzBranding";
 import api from "../../services/api";
+import { resolveAssetUrl } from "../../utils/urlUtils";
 import useAuth from "../../hooks/useAuth";
 import { getStudentUiPrefs, setStudentUiPrefs } from "../../services/studentUiPrefs";
 
@@ -235,7 +236,7 @@ export default function StudentProfilePage() {
   const lastLoginAt = profileData?.lastLoginAt || user?.lastLoginAt;
 
   const profilePhoto = useMemo(
-    () => form.profilePhoto || profileData?.profilePhoto || user?.profilePhoto || "",
+    () => resolveAssetUrl(form.profilePhoto || profileData?.profilePhoto || user?.profilePhoto || ""),
     [form.profilePhoto, profileData?.profilePhoto, user?.profilePhoto]
   );
 
@@ -521,6 +522,10 @@ export default function StudentProfilePage() {
                     src={profilePhoto}
                     alt={fullName}
                     className="h-28 w-28 rounded-3xl border-4 border-white bg-slate-100 object-cover shadow-md transition group-hover:brightness-95"
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = "/auth-assets/profile-placeholder.svg";
+                    }}
                   />
                 ) : (
                   <div className="flex h-28 w-28 items-center justify-center rounded-3xl border-4 border-white text-3xl font-bold shadow-md" style={{ background: "linear-gradient(135deg, #ede9fe, #ddd6fe)", color: "#5b21b6" }}>

@@ -57,7 +57,7 @@ export default function PortalLayout() {
   }
 
   return (
-    <div className={`portal-shell h-screen overflow-hidden flex flex-col lg:flex-row ${isAdmin ? "admin-shell" : ""} ${isStudent ? "student-shell" : ""}`}>
+    <div className={`portal-shell h-[100dvh] overflow-hidden flex flex-col lg:flex-row ${isAdmin ? "admin-shell" : ""} ${isStudent ? "student-shell" : ""}`}>
       {/* Sidebar — desktop only */}
       <div className={`shrink-0 ${isAdmin ? "hidden lg:block lg:w-72 admin-sidebar-wrap" : "hidden lg:block lg:w-60"}`}>
         <SidebarNav items={navItems} role={role} />
@@ -76,7 +76,11 @@ export default function PortalLayout() {
         </div>
 
         {/* Scrollable page content — extra top padding on mobile to clear floating topbar */}
-        <div className="flex-1 overflow-y-auto px-4 pt-24 pb-28 lg:pt-0 lg:px-6 lg:pb-6">
+        <div
+          className={`flex-1 min-h-0 touch-pan-y overscroll-contain overflow-y-auto px-4 pt-24 lg:pt-0 lg:px-6 lg:pb-6 ${
+            isAdmin ? "pb-[calc(45vh+1rem)]" : "pb-[calc(7rem+env(safe-area-inset-bottom))]"
+          }`}
+        >
           <main className={`content-fade-in ${isAdmin ? "admin-main" : ""} ${isStudent ? "student-main" : ""}`}>
             <Outlet />
           </main>

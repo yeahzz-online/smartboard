@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import GlassCard from "../components/GlassCard";
 import useAuth from "../hooks/useAuth";
+import { resolveAssetUrl } from "../utils/urlUtils";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -21,7 +22,7 @@ export default function ProfilePage() {
         <div className="relative">
           {user?.profilePhoto ? (
             <img
-              src={user.profilePhoto}
+              src={resolveAssetUrl(user.profilePhoto)}
               alt={`${user?.name || "User"} profile`}
               className="h-16 w-16 rounded-xl border border-white/20 object-cover"
               onClick={() => setShowPhoto(true)}
@@ -123,7 +124,7 @@ export default function ProfilePage() {
               Close
             </button>
             <img
-              src={user.profilePhoto}
+              src={resolveAssetUrl(user.profilePhoto)}
               alt="Profile large view"
               className="mx-auto max-h-[70vh] w-full rounded-xl object-contain"
             />

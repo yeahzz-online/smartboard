@@ -58,7 +58,10 @@ export default function BottomNav({ items, role }) {
   /* ── ADMIN ── scrollable grid tile nav ── */
   if (isAdmin) {
     return (
-      <nav className="bottom-nav-glass fixed bottom-4 left-1/2 z-50 max-h-[45vh] w-[calc(100%-1.25rem)] max-w-lg -translate-x-1/2 overflow-y-auto rounded-3xl p-2 lg:hidden">
+      <nav
+        className="bottom-nav-glass fixed bottom-3 left-1/2 z-50 max-h-[45vh] w-[calc(100%-1.25rem)] max-w-lg -translate-x-1/2 touch-pan-y overscroll-contain overflow-y-auto rounded-3xl p-2 lg:hidden"
+        style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+      >
         <ul
           className="grid gap-1"
           style={{ gridTemplateColumns: `repeat(${adminGridColumns}, minmax(0, 1fr))` }}
@@ -97,7 +100,10 @@ export default function BottomNav({ items, role }) {
 
   /* ── STUDENT / FACULTY ── pill nav ── */
   return (
-    <nav className="bottom-nav-glass fixed bottom-3 left-1/2 z-50 w-[calc(100%-1.25rem)] max-w-lg -translate-x-1/2 rounded-full p-1.5 lg:hidden">
+    <nav
+      className="bottom-nav-glass fixed bottom-3 left-1/2 z-50 w-[calc(100%-1.25rem)] max-w-lg -translate-x-1/2 touch-pan-x rounded-full p-1.5 lg:hidden"
+      style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+    >
       <ul
         className="grid items-center gap-1"
         style={{ gridTemplateColumns: `repeat(${Math.max(navItems.length, 1)}, minmax(0, 1fr))` }}

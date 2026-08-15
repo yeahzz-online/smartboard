@@ -528,6 +528,9 @@ const login = asyncHandler(async (req, res) => {
   if (!user.isVerified) {
     throw new ApiError(403, "Account is not verified");
   }
+  if (user.isActive === false) {
+    throw new ApiError(403, "Account is inactive. Contact an administrator");
+  }
 
   if (user.role === ROLES.SMARTBOARD) {
     throw new ApiError(403, "Smartboard accounts cannot use password login");
