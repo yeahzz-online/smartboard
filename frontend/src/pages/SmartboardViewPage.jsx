@@ -932,9 +932,21 @@ export default function SmartboardViewPage() {
                 setPreviewFileType("");
                 setPreviewFile(null);
               }}
-              className="absolute right-4 top-4 z-30 rounded-lg bg-black/60 px-3 py-2 text-xs font-bold text-white opacity-0 shadow-lg transition-opacity hover:bg-rose-600 group-hover:opacity-100 focus:opacity-100"
+              className="absolute bottom-4 left-4 z-30 rounded-lg border border-rose-400/40 bg-rose-600/80 px-3 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-300"
               aria-label="Close presentation viewer"
             >
+              ✕ Close
+             </button>
+             <button
+               type="button"
+               onClick={() => {
+                 setPreviewFileUrl("");
+                 setPreviewFileType("");
+                 setPreviewFile(null);
+               }}
+               className="absolute bottom-4 right-4 z-30 rounded-lg border border-rose-400/40 bg-rose-600/80 px-3 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-300"
+               aria-label="Close presentation viewer"
+             >
               ✕ Close
             </button>
             {/* Ambient Background Glows */}
